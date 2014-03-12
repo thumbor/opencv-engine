@@ -1,5 +1,5 @@
-opencv-engine
-=============
+opencv-engine [![Build Status](https://travis-ci.org/thumbor/opencv-engine.png?branch=0.1.0)](https://travis-ci.org/thumbor/opencv-engine)
+==============================================================================
 
 Thumbor engine for the OpenCV imaging library.
 
