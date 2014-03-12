@@ -1,0 +1,37 @@
+language: python
+python:
+  - "2.7"
+
+install:
+    #removing unwanted packages
+    - sudo apt-get remove --purge -y $(< unwanted_packages)
+    # update aptitude
+    - sudo apt-get update -y
+    - sudo apt-get install aptitude -y
+
+    # install aptitude packages
+    - LDFLAGS=-lm sudo aptitude install -y $(< requirements)
+
+    - sudo apt-get autoremove -y
+
+    - df -h
+
+    # weird travis-ci python paths
+    - export PYTHONPATH=$PYTHONPATH:/usr/lib/pymodules/python2.7/
+    - export PYTHONPATH=$PYTHONPATH:/usr/lib/python2.7/dist-packages
+    - export PYTHONPATH=$PYTHONPATH:/usr/lib/pyshared/python2.7/
+    - export PYTHONPATH=$PYTHONPATH:/usr/local/lib/python2.7/site-packages/
+
+    # verify both requirements were met
+    - INSTALLDIR=$(python -c "import os; import numpy; print(os.path.dirname(numpy.__file__))")
+
+    # Fix distribute
+    - wget http://python-distribute.org/distribute_setup.py
+    - python distribute_setup.py
+
+    # install python requirements
+    - make setup
+
+script:
+    # finally run tests
+    - make test
