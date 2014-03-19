@@ -11,6 +11,7 @@
 import cv
 
 from thumbor.engines import BaseEngine
+from thumbor.utils import deprecated
 
 FORMATS = {
     '.jpg': 'JPEG',
@@ -80,18 +81,21 @@ class Engine(BaseEngine):
 
         return cv.EncodeImage(extension, self.image, options or []).tostring()
 
+    @deprecated("Use image_data_as_rgb instead.")
     def get_image_data(self):
         return self.image.tostring()
 
     def set_image_data(self, data):
         cv.SetData(self.image, data)
 
-    def convert_to_rgb(self):
-        return self.get_image_mode(), self.get_image_data()
-
+    @deprecated("Use image_data_as_rgb instead.")
     def get_image_mode(self):
-        # TODO: Handle pngs with alpha channel
+        # TODO: Handle alpha channel
         return 'BGR'
+
+    def image_data_as_rgb(self, update_image=True):
+        # TODO: Handle alpha channel and other formats
+        return self.get_image_mode(), self.get_image_data()
 
     def draw_rectangle(self, x, y, width, height):
         cv.Rectangle(self.image, (int(x), int(y)), (int(x + width), int(y + height)), cv.Scalar(255, 255, 255, 1.0))
