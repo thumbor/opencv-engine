@@ -14,6 +14,7 @@ tests_require = [
     'ipdb',
     'coveralls',
     'numpy',
+    'colour',
 ]
 
 setup(

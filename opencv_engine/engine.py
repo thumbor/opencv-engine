@@ -9,9 +9,16 @@
 # Copyright (c) 2014 globo.com timehome@corp.globo.com
 
 import cv
+from colour import Color
 
 from thumbor.engines import BaseEngine
 from thumbor.utils import deprecated
+
+try:
+    from thumbor.ext.filters import _composite
+    FILTERS_AVAILABLE = True
+except ImportError:
+    FILTERS_AVAILABLE = False
 
 FORMATS = {
     '.jpg': 'JPEG',
@@ -22,6 +29,22 @@ FORMATS = {
 
 
 class Engine(BaseEngine):
+
+    @classmethod
+    def parse_hex_color(cls, color):
+        try:
+            color = Color(color).get_rgb()
+            return tuple(c * 255 for c in reversed(color))
+        except Exception:
+            return None
+
+    def gen_image(self, size, color_value):
+        color = self.parse_hex_color(color_value)
+        if not color:
+            raise ValueError('Color %s is not valid.' % color_value)
+        img0 = cv.CreateImage(size, 8, 3)
+        cv.Set(img0, color)
+        return img0
 
     def create_image(self, buffer):
         # FIXME: opencv doesn't support gifs, even worse, the library
@@ -35,7 +58,7 @@ class Engine(BaseEngine):
 
         imagefiledata = cv.CreateMatHeader(1, len(buffer), cv.CV_8UC1)
         cv.SetData(imagefiledata, buffer, len(buffer))
-        img0 = cv.DecodeImage(imagefiledata, cv.CV_LOAD_IMAGE_COLOR)
+        img0 = cv.DecodeImageM(imagefiledata, cv.CV_LOAD_IMAGE_UNCHANGED)
 
         return img0
 
@@ -47,14 +70,14 @@ class Engine(BaseEngine):
         pass
 
     def resize(self, width, height):
-        thumbnail = cv.CreateMat(int(round(height, 0)), int(round(width, 0)), cv.CV_8UC3)
+        thumbnail = cv.CreateImage((int(round(width, 0)), int(round(height, 0))), 8, self.image.channels)
         cv.Resize(self.image, thumbnail, cv.CV_INTER_AREA)
         self.image = thumbnail
 
     def crop(self, left, top, right, bottom):
         new_width = right - left
         new_height = bottom - top
-        cropped = cv.CreateImage((new_width, new_height), 8, 3)
+        cropped = cv.CreateImage((new_width, new_height), 8, self.image.channels)
         src_region = cv.GetSubRect(self.image, (left, top, new_width, new_height))
         cv.Copy(src_region, cropped)
 
@@ -81,26 +104,58 @@ class Engine(BaseEngine):
 
         return cv.EncodeImage(extension, self.image, options or []).tostring()
 
-    @deprecated("Use image_data_as_rgb instead.")
-    def get_image_data(self):
-        return self.image.tostring()
-
     def set_image_data(self, data):
         cv.SetData(self.image, data)
 
-    @deprecated("Use image_data_as_rgb instead.")
-    def get_image_mode(self):
-        # TODO: Handle alpha channel
-        return 'BGR'
-
     def image_data_as_rgb(self, update_image=True):
-        # TODO: Handle alpha channel and other formats
-        return self.get_image_mode(), self.get_image_data()
+        # TODO: Handle other formats
+        if self.image.channels == 4:
+            mode = 'BGRA'
+        elif self.image.channels == 3:
+            mode = 'BGR'
+        else:
+            mode = 'BGR'
+            rgb_copy = cv.CreateImage((self.image.width, self.image.height), 8, 3)
+            cv.CvtColor(self.image, rgb_copy, cv.CV_GRAY2BGR)
+            self.image = rgb_copy
+        return mode, self.image.tostring()
 
     def draw_rectangle(self, x, y, width, height):
         cv.Rectangle(self.image, (int(x), int(y)), (int(x + width), int(y + height)), cv.Scalar(255, 255, 255, 1.0))
 
     def convert_to_grayscale(self):
-        grayscaled = cv.CreateImage((self.image.width, self.image.height), self.image.depth, 1)  # one single channel
-        cv.CvtColor(self.image, grayscaled, cv.CV_RGB2GRAY)
-        self.image = grayscaled
+        if self.image.channels >= 3:
+            # FIXME: OpenCV does not support grayscale with alpha channel?
+            grayscaled = cv.CreateImage((self.image.width, self.image.height), 8, 1)
+            cv.CvtColor(self.image, grayscaled, cv.CV_BGRA2GRAY)
+            self.image = grayscaled
+
+    def paste(self, other_engine, pos, merge=True):
+        if merge and not FILTERS_AVAILABLE:
+            raise RuntimeError(
+                'You need filters enabled to use paste with merge. Please reinstall ' +
+                'thumbor with proper compilation of its filters.')
+
+        self.enable_alpha()
+        other_engine.enable_alpha()
+
+        sz = self.size
+        other_size = other_engine.size
+
+        mode, data = self.image_data_as_rgb()
+        other_mode, other_data = other_engine.image_data_as_rgb()
+
+        imgdata = _composite.apply(
+            mode, data, sz[0], sz[1],
+            other_data, other_size[0], other_size[1], pos[0], pos[1], merge)
+
+        self.set_image_data(imgdata)
+
+    def enable_alpha(self):
+        if self.image.channels < 4:
+            with_alpha = cv.CreateImage((self.image.width, self.image.height), 8, 4)
+            if self.image.channels == 3:
+                cv.CvtColor(self.image, with_alpha, cv.CV_BGR2BGRA)
+            else:
+                cv.CvtColor(self.image, with_alpha, cv.CV_GRAY2BGRA)
+            self.image = with_alpha
