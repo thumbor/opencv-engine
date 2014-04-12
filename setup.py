@@ -43,6 +43,7 @@ OpenCV imaging engine for thumbor.
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
+        'colour',
         'thumbor',
     ],
     extras_require={
