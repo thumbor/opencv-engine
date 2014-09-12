@@ -16,7 +16,7 @@ except ImportError:
 from colour import Color
 
 from thumbor.engines import BaseEngine
-from thumbor.utils import deprecated
+from pexif import JpegFile, ExifSegment
 
 try:
     from thumbor.ext.filters import _composite
@@ -64,6 +64,12 @@ class Engine(BaseEngine):
         cv.SetData(imagefiledata, buffer, len(buffer))
         img0 = cv.DecodeImageM(imagefiledata, cv.CV_LOAD_IMAGE_UNCHANGED)
 
+        if FORMATS[self.extension] == 'JPEG':
+            info = JpegFile.fromString(buffer).get_exif()
+            if info:
+                self.exif = info.data
+                self.exif_marker = info.marker
+
         return img0
 
     @property
@@ -87,6 +93,29 @@ class Engine(BaseEngine):
 
         self.image = cropped
 
+    def rotate(self, degrees):
+        if (degrees > 180):
+            # Flip around both axes
+            cv.Flip(self.image, None, -1)
+            degrees = degrees - 180
+
+        img = self.image
+        size = cv.GetSize(img)
+
+        if (degrees / 90 % 2):
+            new_size = (size[1], size[0])
+            center = ((size[0] - 1) * 0.5, (size[0] - 1) * 0.5)
+        else:
+            new_size = size
+            center = ((size[0] - 1) * 0.5, (size[1] - 1) * 0.5)
+
+        mapMatrix = cv.CreateMat(2, 3, cv.CV_64F)
+        cv.GetRotationMatrix2D(center, degrees, 1.0, mapMatrix)
+        dst = cv.CreateImage(new_size, 8, img.channels)
+        cv.SetZero(dst)
+        cv.WarpAffine(img, dst, mapMatrix)
+        self.image = dst
+
     def flip_vertically(self):
         cv.Flip(self.image, None, 1)
 
@@ -103,10 +132,18 @@ class Engine(BaseEngine):
             if FORMATS[extension] == 'JPEG':
                 options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
         except KeyError:
-            #default is JPEG so
+            # default is JPEG so
             options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
 
-        return cv.EncodeImage(extension, self.image, options or []).tostring()
+        data = cv.EncodeImage(extension, self.image, options or []).tostring()
+
+        if self.context.config.PRESERVE_EXIF_INFO:
+            if hasattr(self, 'exif'):
+                img = JpegFile.fromString(data)
+                img._segments.insert(0, ExifSegment(self.exif_marker, None, self.exif, 'rw'))
+                data = img.writeString()
+
+        return data
 
     def set_image_data(self, data):
         cv.SetData(self.image, data)
