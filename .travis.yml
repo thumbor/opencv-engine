@@ -13,10 +13,6 @@ before_install:
     # verify all requirements were met
     - INSTALLDIR=$(python -c "import os; import numpy; import cv; import cv2; print(os.path.dirname(cv2.__file__))")
 
-    # fix distribute
-    - wget http://python-distribute.org/distribute_setup.py
-    - python distribute_setup.py
-
 install:
     # install python requirements
     - make setup
