@@ -137,7 +137,7 @@ class Engine(BaseEngine):
 
         data = cv.EncodeImage(extension, self.image, options or []).tostring()
 
-        if self.context.config.PRESERVE_EXIF_INFO:
+        if FORMATS[extension] == 'JPEG' and self.context.config.PRESERVE_EXIF_INFO:
             if hasattr(self, 'exif'):
                 img = JpegFile.fromString(data)
                 img._segments.insert(0, ExifSegment(self.exif_marker, None, self.exif, 'rw'))
