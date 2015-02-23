@@ -34,6 +34,18 @@ FORMATS = {
 
 class Engine(BaseEngine):
 
+    @property
+    def image_depth(self):
+        if self.image is None:
+            return 8
+        return cv.GetImage(self.image).depth
+
+    @property
+    def image_channels(self):
+        if self.image is None:
+            return 3
+        return self.image.channels
+
     @classmethod
     def parse_hex_color(cls, color):
         try:
@@ -46,7 +58,7 @@ class Engine(BaseEngine):
         color = self.parse_hex_color(color_value)
         if not color:
             raise ValueError('Color %s is not valid.' % color_value)
-        img0 = cv.CreateImage(size, 8, 3)
+        img0 = cv.CreateImage(size, self.image_depth, self.image_channels)
         cv.Set(img0, color)
         return img0
 
@@ -83,14 +95,20 @@ class Engine(BaseEngine):
         pass
 
     def resize(self, width, height):
-        thumbnail = cv.CreateImage((int(round(width, 0)), int(round(height, 0))), 8, self.image.channels)
+        thumbnail = cv.CreateImage(
+            (int(round(width, 0)), int(round(height, 0))),
+            self.image_depth,
+            self.image_channels
+        )
         cv.Resize(self.image, thumbnail, cv.CV_INTER_AREA)
         self.image = thumbnail
 
     def crop(self, left, top, right, bottom):
         new_width = right - left
         new_height = bottom - top
-        cropped = cv.CreateImage((new_width, new_height), 8, self.image.channels)
+        cropped = cv.CreateImage(
+            (new_width, new_height), self.image_depth, self.image_channels
+        )
         src_region = cv.GetSubRect(self.image, (left, top, new_width, new_height))
         cv.Copy(src_region, cropped)
 
@@ -114,7 +132,7 @@ class Engine(BaseEngine):
 
         mapMatrix = cv.CreateMat(2, 3, cv.CV_64F)
         cv.GetRotationMatrix2D(center, degrees, 1.0, mapMatrix)
-        dst = cv.CreateImage(new_size, 8, img.channels)
+        dst = cv.CreateImage(new_size, self.image_depth, self.image_channels)
         cv.SetZero(dst)
         cv.WarpAffine(img, dst, mapMatrix)
         self.image = dst
@@ -153,9 +171,9 @@ class Engine(BaseEngine):
 
     def image_data_as_rgb(self, update_image=True):
         # TODO: Handle other formats
-        if self.image.channels == 4:
+        if self.image_channels == 4:
             mode = 'BGRA'
-        elif self.image.channels == 3:
+        elif self.image_channels == 3:
             mode = 'BGR'
         else:
             mode = 'BGR'
@@ -168,9 +186,9 @@ class Engine(BaseEngine):
         cv.Rectangle(self.image, (int(x), int(y)), (int(x + width), int(y + height)), cv.Scalar(255, 255, 255, 1.0))
 
     def convert_to_grayscale(self):
-        if self.image.channels >= 3:
+        if self.image_channels >= 3:
             # FIXME: OpenCV does not support grayscale with alpha channel?
-            grayscaled = cv.CreateImage((self.image.width, self.image.height), 8, 1)
+            grayscaled = cv.CreateImage((self.image.width, self.image.height), self.image_depth, 1)
             cv.CvtColor(self.image, grayscaled, cv.CV_BGRA2GRAY)
             self.image = grayscaled
 
@@ -196,9 +214,11 @@ class Engine(BaseEngine):
         self.set_image_data(imgdata)
 
     def enable_alpha(self):
-        if self.image.channels < 4:
-            with_alpha = cv.CreateImage((self.image.width, self.image.height), 8, 4)
-            if self.image.channels == 3:
+        if self.image_channels < 4:
+            with_alpha = cv.CreateImage(
+                (self.image.width, self.image.height), self.image_depth, 4
+            )
+            if self.image_channels == 3:
                 cv.CvtColor(self.image, with_alpha, cv.CV_BGR2BGRA)
             else:
                 cv.CvtColor(self.image, with_alpha, cv.CV_GRAY2BGRA)
