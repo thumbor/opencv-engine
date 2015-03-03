@@ -55,10 +55,13 @@ class Engine(BaseEngine):
             return None
 
     def gen_image(self, size, color_value):
-        color = self.parse_hex_color(color_value)
-        if not color:
-            raise ValueError('Color %s is not valid.' % color_value)
         img0 = cv.CreateImage(size, self.image_depth, self.image_channels)
+        if color_value == 'transparent':
+            color = (255, 255, 255, 255)
+        else:
+            color = self.parse_hex_color(color_value)
+            if not color:
+                raise ValueError('Color %s is not valid.' % color_value)
         cv.Set(img0, color)
         return img0
 
