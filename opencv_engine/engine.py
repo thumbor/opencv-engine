@@ -85,11 +85,11 @@ class Engine(BaseEngine):
         if FORMATS[self.extension] == 'TIFF':
             input = StringIO(buffer)
             img0 = Image.open(input)
-            input.close()
             #print img0.getbands()
             img0 = img0.convert('RGBA') #I am lazy so always convet to RGBA
             img0 = cv2.cvtColor(numpy.asarray(img0), cv2.COLOR_RGBA2BGRA) #cv uses BGRA
             img0 = cv.fromarray(img0) #Cast numpy array to cv image
+            input.close()
         else:
             imagefiledata = cv.CreateMatHeader(1, len(buffer), cv.CV_8UC1)
             cv.SetData(imagefiledata, buffer, len(buffer))
