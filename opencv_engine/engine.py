@@ -17,6 +17,10 @@ from colour import Color
 
 from thumbor.engines import BaseEngine
 from pexif import JpegFile, ExifSegment
+from PIL import Image
+from cStringIO import StringIO
+import numpy
+import cv2
 
 try:
     from thumbor.ext.filters import _composite
@@ -78,9 +82,18 @@ class Engine(BaseEngine):
         except KeyError:
             pass
 
-        imagefiledata = cv.CreateMatHeader(1, len(buffer), cv.CV_8UC1)
-        cv.SetData(imagefiledata, buffer, len(buffer))
-        img0 = cv.DecodeImageM(imagefiledata, cv.CV_LOAD_IMAGE_UNCHANGED)
+        if FORMATS[self.extension] == 'TIFF':
+            input = StringIO(buffer)
+            img0 = Image.open(input)
+            input.close()
+            #print img0.getbands()
+            img0 = img0.convert('RGBA') #I am lazy so always convet to RGBA
+            img0 = cv2.cvtColor(numpy.asarray(img0), cv2.COLOR_RGBA2BGRA) #cv uses BGRA
+            img0 = cv.fromarray(img0) #Cast numpy array to cv image
+        else:
+            imagefiledata = cv.CreateMatHeader(1, len(buffer), cv.CV_8UC1)
+            cv.SetData(imagefiledata, buffer, len(buffer))
+            img0 = cv.DecodeImageM(imagefiledata, cv.CV_LOAD_IMAGE_UNCHANGED)
 
         if FORMATS[self.extension] == 'JPEG':
             try:
