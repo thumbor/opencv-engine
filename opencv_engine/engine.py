@@ -28,7 +28,9 @@ FORMATS = {
     '.jpg': 'JPEG',
     '.jpeg': 'JPEG',
     '.gif': 'GIF',
-    '.png': 'PNG'
+    '.png': 'PNG',
+    '.tiff': 'TIFF',
+    '.tif': 'TIFF',
 }
 
 
@@ -66,6 +68,7 @@ class Engine(BaseEngine):
         return img0
 
     def create_image(self, buffer):
+        self.extension = self.extension or '.tif'
         # FIXME: opencv doesn't support gifs, even worse, the library
         # segfaults when trying to decoding a gif. An exception is a
         # less drastic measure.
