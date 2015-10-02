@@ -22,6 +22,8 @@ from cStringIO import StringIO
 import numpy
 import cv2
 
+Image.MAX_IMAGE_PIXELS = None #PIL throws exception for large images
+
 try:
     from thumbor.ext.filters import _composite
     FILTERS_AVAILABLE = True
