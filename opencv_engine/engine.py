@@ -18,9 +18,8 @@ from colour import Color
 from thumbor.engines import BaseEngine
 from pexif import JpegFile, ExifSegment
 from PIL import Image
-from cStringIO import StringIO
-import numpy
 import cv2
+import gdal
 
 Image.MAX_IMAGE_PIXELS = None #PIL throws exception for large images
 
@@ -85,13 +84,22 @@ class Engine(BaseEngine):
             pass
 
         if FORMATS[self.extension] == 'TIFF':
-            input = StringIO(buffer)
-            img0 = Image.open(input)
-            #print img0.getbands()
-            img0 = img0.convert('RGBA') #I am lazy so always convet to RGBA
-            img0 = cv2.cvtColor(numpy.asarray(img0), cv2.COLOR_RGBA2BGRA) #cv uses BGRA
-            img0 = cv.fromarray(img0) #Cast numpy array to cv image
-            input.close()
+            ds = None
+            try:
+                gdal.FileFromMemBuffer('/vsimem/temp', buffer)
+                ds = gdal.Open('/vsimem/temp')
+                channels = [ds.GetRasterBand(i).ReadAsArray() for i in range(1, ds.RasterCount+1)]
+                if len(channels) >= 3: #open cv is bgr not rgb
+                    red_channel = channels[0]
+                    channels[0] = channels[2]
+                    channels[2] = red_channel
+                img0 = cv.fromarray(cv2.merge(channels))
+                ds = None #cleanup
+                gdal.Unlink('/vsimem/temp') #cleanup
+            except Exception, e:
+                ds = None #cleanup
+                gdal.Unlink('/vsimem/temp') #cleanup
+                raise e
         else:
             imagefiledata = cv.CreateMatHeader(1, len(buffer), cv.CV_8UC1)
             cv.SetData(imagefiledata, buffer, len(buffer))
