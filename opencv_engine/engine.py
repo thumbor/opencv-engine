@@ -174,7 +174,7 @@ class Engine(BaseEngine):
         cv.Flip(self.image, None, 0)
 
     def read(self, extension=None, quality=None):
-        if not extension or FORMATS[extension] == 'TIFF':
+        if not extension and FORMATS[self.extension] == 'TIFF':
             return self.buffer
         else:
             if quality is None:
