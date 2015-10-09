@@ -82,6 +82,7 @@ class Engine(BaseEngine):
             pass
 
         if FORMATS[self.extension] == 'TIFF':
+            self.buffer = buffer
             ds = None
             try:
                 gdal.FileFromMemBuffer('/vsimem/temp', buffer)
@@ -173,25 +174,28 @@ class Engine(BaseEngine):
         cv.Flip(self.image, None, 0)
 
     def read(self, extension=None, quality=None):
-        if quality is None:
-            quality = self.context.config.QUALITY
+        if not extension or FORMATS[extension] == 'TIFF':
+            return self.buffer
+        else:
+            if quality is None:
+                quality = self.context.config.QUALITY
 
-        options = None
-        extension = extension or self.extension
-        try:
-            if FORMATS[extension] == 'JPEG':
+            options = None
+            extension = extension or self.extension
+            try:
+                if FORMATS[extension] == 'JPEG':
+                    options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
+            except KeyError:
+                # default is JPEG so
                 options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
-        except KeyError:
-            # default is JPEG so
-            options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
 
-        data = cv.EncodeImage(extension, self.image, options or []).tostring()
+            data = cv.EncodeImage(extension, self.image, options or []).tostring()
 
-        if FORMATS[extension] == 'JPEG' and self.context.config.PRESERVE_EXIF_INFO:
-            if hasattr(self, 'exif'):
-                img = JpegFile.fromString(data)
-                img._segments.insert(0, ExifSegment(self.exif_marker, None, self.exif, 'rw'))
-                data = img.writeString()
+            if FORMATS[extension] == 'JPEG' and self.context.config.PRESERVE_EXIF_INFO:
+                if hasattr(self, 'exif'):
+                    img = JpegFile.fromString(data)
+                    img._segments.insert(0, ExifSegment(self.exif_marker, None, self.exif, 'rw'))
+                    data = img.writeString()
 
         return data
 
