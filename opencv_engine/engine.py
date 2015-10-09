@@ -20,6 +20,7 @@ from pexif import JpegFile, ExifSegment
 from PIL import Image
 import cv2
 import gdal
+import numpy
 
 Image.MAX_IMAGE_PIXELS = None #PIL throws exception for large images
 
@@ -93,6 +94,8 @@ class Engine(BaseEngine):
                     red_channel = channels[0]
                     channels[0] = channels[2]
                     channels[2] = red_channel
+                if len(channels) < 4:
+                    channels.append(numpy.float32(ds.GetRasterBand(1).GetMaskBand().ReadAsArray()))
                 img0 = cv.fromarray(cv2.merge(channels))
                 ds = None #cleanup
                 gdal.Unlink('/vsimem/temp') #cleanup
