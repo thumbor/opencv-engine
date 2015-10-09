@@ -17,12 +17,9 @@ from colour import Color
 
 from thumbor.engines import BaseEngine
 from pexif import JpegFile, ExifSegment
-from PIL import Image
 import cv2
 import gdal
 import numpy
-
-Image.MAX_IMAGE_PIXELS = None #PIL throws exception for large images
 
 try:
     from thumbor.ext.filters import _composite
