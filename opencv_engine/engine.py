@@ -72,6 +72,7 @@ class Engine(BaseEngine):
 
     def create_image(self, buffer):
         self.extension = self.extension or '.tif'
+        self.no_data_value = None
         # FIXME: opencv doesn't support gifs, even worse, the library
         # segfaults when trying to decoding a gif. An exception is a
         # less drastic measure.
@@ -93,6 +94,7 @@ class Engine(BaseEngine):
                     channels[0] = channels[2]
                     channels[2] = red_channel
                 if len(channels) < 4:
+                    self.no_data_value = ds.GetRasterBand(1).GetNoDataValue()
                     channels.append(numpy.float32(ds.GetRasterBand(1).GetMaskBand().ReadAsArray()))
                 img0 = cv.fromarray(cv2.merge(channels))
                 ds = None #cleanup
