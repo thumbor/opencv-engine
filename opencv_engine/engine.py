@@ -83,7 +83,6 @@ class Engine(BaseEngine):
             pass
 
         if FORMATS[self.extension] == 'TIFF':
-            self.buffer = buffer
             ds = None
             try:
                 gdal.FileFromMemBuffer('/vsimem/temp', buffer)
@@ -175,9 +174,42 @@ class Engine(BaseEngine):
     def flip_horizontally(self):
         cv.Flip(self.image, None, 0)
 
+    @classmethod
+    def _read_vsimem(cls, fn):
+        '''Read GDAL vsimem files'''
+        try:
+            vsifile = gdal.VSIFOpenL(fn,'r')
+            gdal.VSIFSeekL(vsifile, 0, 2)
+            vsileng = gdal.VSIFTellL(vsifile)
+            gdal.VSIFSeekL(vsifile, 0, 0)
+            return gdal.VSIFReadL(1, vsileng, vsifile)
+        finally:
+            gdal.VSIFCloseL(vsifile)
+
     def read(self, extension=None, quality=None):
-        if not extension and FORMATS[self.extension] == 'TIFF':
-            return self.buffer
+        if FORMATS[self.extension] == 'TIFF':
+            img = numpy.asarray(self.image[:,:])
+            if str(img.dtype) == 'float64':
+                img = img.astype('float32')
+            channels = cv2.split(img)
+            height, width = channels[0].shape
+            gdal_type = {
+                'float32':gdal.GDT_Float32,
+                'uint8':gdal.GDT_Byte,
+            }[str(img.dtype)]
+            try:
+                #create tiff
+                driver = gdal.GetDriverByName('GTiff')
+                ds = driver.Create('/vsimem/temp', width, height, len(channels), gdal_type)
+                for index, channel in enumerate(channels):
+                    ds.GetRasterBand(index+1).WriteArray(channel)
+                ds.FlushCache() #write tiff
+                #read into python
+                return self._read_vsimem('/vsimem/temp')
+            finally:
+                ds = None
+                driver = None
+                gdal.Unlink('/vsimem/temp') #cleanup
         else:
             if quality is None:
                 quality = self.context.config.QUALITY
