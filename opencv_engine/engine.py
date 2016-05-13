@@ -8,13 +8,14 @@
 # http://www.opensource.org/licenses/mit-license
 # Copyright (c) 2014 globo.com timehome@corp.globo.com
 
+import io
+from PIL import Image
 try:
     import cv
 except ImportError:
     import cv2.cv as cv
 
 from colour import Color
-
 from thumbor.engines import BaseEngine
 from pexif import JpegFile, ExifSegment
 import cv2
@@ -116,7 +117,6 @@ class Engine(BaseEngine):
                     self.exif_marker = info.marker
             except Exception:
                 pass
-
         return img0
 
     @property
@@ -191,7 +191,19 @@ class Engine(BaseEngine):
                 # default is JPEG so
                 options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
 
-            data = cv.EncodeImage(extension, self.image, options or []).tostring()
+            if FORMATS[extension] == 'TIFF':
+                channels = cv2.split(numpy.asarray(self.image))
+                # If it's a floating point TIFF, use PIL since cv.EncodeImage only supports
+                # 8 bit integer channels.
+                if channels[0].dtype.kind == 'f':
+                    pil_image = Image.fromarray(channels[0])
+                    buff = io.BytesIO()
+                    pil_image.save(buff, 'TIFF')
+                    data = buff.getvalue()
+                else:
+                    data = cv.EncodeImage(extension, self.image, options or []).tostring()
+            else:
+                data = cv.EncodeImage(extension, self.image, options or []).tostring()
 
             if FORMATS[extension] == 'JPEG' and self.context.config.PRESERVE_EXIF_INFO:
                 if hasattr(self, 'exif'):
