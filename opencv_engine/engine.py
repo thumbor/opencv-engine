@@ -9,6 +9,7 @@
 # Copyright (c) 2014 globo.com timehome@corp.globo.com
 
 import io
+import uuid
 from PIL import Image
 try:
     import cv
@@ -71,7 +72,7 @@ class Engine(BaseEngine):
         cv.Set(img0, color)
         return img0
 
-    def create_image(self, buffer):
+    def create_image(self, buffer, create_alpha=True):
         self.extension = self.extension or '.tif'
         self.no_data_value = None
         # FIXME: opencv doesn't support gifs, even worse, the library
@@ -85,25 +86,7 @@ class Engine(BaseEngine):
 
         if FORMATS[self.extension] == 'TIFF':
             self.buffer = buffer
-            ds = None
-            try:
-                gdal.FileFromMemBuffer('/vsimem/temp', buffer)
-                ds = gdal.Open('/vsimem/temp')
-                channels = [ds.GetRasterBand(i).ReadAsArray() for i in range(1, ds.RasterCount+1)]
-                if len(channels) >= 3: #open cv is bgr not rgb
-                    red_channel = channels[0]
-                    channels[0] = channels[2]
-                    channels[2] = red_channel
-                if len(channels) < 4:
-                    self.no_data_value = ds.GetRasterBand(1).GetNoDataValue()
-                    channels.append(numpy.float32(ds.GetRasterBand(1).GetMaskBand().ReadAsArray()))
-                img0 = cv.fromarray(cv2.merge(channels))
-                ds = None #cleanup
-                gdal.Unlink('/vsimem/temp') #cleanup
-            except Exception, e:
-                ds = None #cleanup
-                gdal.Unlink('/vsimem/temp') #cleanup
-                raise e
+            img0 = self.read_tiff(buffer, create_alpha)
         else:
             imagefiledata = cv.CreateMatHeader(1, len(buffer), cv.CV_8UC1)
             cv.SetData(imagefiledata, buffer, len(buffer))
@@ -118,6 +101,30 @@ class Engine(BaseEngine):
             except Exception:
                 pass
         return img0
+
+    def read_tiff(self, buffer, create_alpha=True):
+        """ Reads image using GDAL from a buffer, and returns a CV2 image.
+        """
+        mem_map_name = '/vsimem/{}'.format(uuid.uuid4().get_hex())
+        gdal_img = None
+        try:
+            gdal.FileFromMemBuffer(mem_map_name, buffer)
+            gdal_img = gdal.Open(mem_map_name)
+
+            channels = [gdal_img.GetRasterBand(i).ReadAsArray() for i in range(1, gdal_img.RasterCount+1)]
+
+            if len(channels) >= 3: # opencv is bgr not rgb.
+                red_channel = channels[0]
+                channels[0] = channels[2]
+                channels[2] = red_channel
+
+            if len(channels) < 4 and create_alpha:
+                self.no_data_value = gdal_img.GetRasterBand(1).GetNoDataValue()
+                channels.append(numpy.float32(gdal_img.GetRasterBand(1).GetMaskBand().ReadAsArray()))
+            return cv.fromarray(cv2.merge(channels))
+        finally:
+            gdal_img = None
+            gdal.Unlink(mem_map_name) # Cleanup.
 
     @property
     def size(self):
@@ -183,7 +190,6 @@ class Engine(BaseEngine):
         else:
             if quality is None:
                 quality = self.context.config.QUALITY
-
             options = None
             extension = extension or self.extension
             try:
@@ -192,11 +198,11 @@ class Engine(BaseEngine):
             except KeyError:
                 # default is JPEG so
                 options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
-
             if FORMATS[extension] == 'TIFF':
                 channels = cv2.split(numpy.asarray(self.image))
                 # If it's a floating point TIFF, use PIL since cv.EncodeImage only supports
-                # 8 bit integer channels.
+                # 8 bit integer channels. If we need more than single channel 32 bit tiffs
+                # we should switch over to using GDAL as we do for reads.
                 if channels[0].dtype.kind == 'f':
                     pil_image = Image.fromarray(channels[0])
                     buff = io.BytesIO()
