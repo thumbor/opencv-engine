@@ -22,6 +22,7 @@ from pexif import JpegFile, ExifSegment
 import cv2
 import gdal
 import numpy
+from osgeo import  osr
 
 try:
     from thumbor.ext.filters import _composite
@@ -72,7 +73,6 @@ class Engine(BaseEngine):
         cv.Set(img0, color)
         return img0
 
-
     def read(self, extension=None, quality=None):
 
         if not extension and FORMATS[self.extension] == 'TIFF':
@@ -91,12 +91,7 @@ class Engine(BaseEngine):
                 options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
             if FORMATS[extension] == 'TIFF':
                 channels = cv2.split(numpy.asarray(self.image))
-                # If it's a floating point TIFF, use PIL since cv.EncodeImage only supports
-                # 8 bit integer channels.
-                if channels[0].dtype.kind == 'f':
-                    data = self.write_channels_to_tiff_buffer(channels)
-                else:
-                    data = cv.EncodeImage(extension, self.image, options or []).tostring()
+                data = self.write_channels_to_tiff_buffer(channels)
             else:
                 data = cv.EncodeImage(extension, self.image, options or []).tostring()
 
@@ -149,7 +144,7 @@ class Engine(BaseEngine):
 
             channels = [gdal_img.GetRasterBand(i).ReadAsArray() for i in range(1, gdal_img.RasterCount+1)]
 
-            if len(channels) >= 3: # opencv is bgr not rgb.
+            if len(channels) >= 3:  # opencv is bgr not rgb.
                 red_channel = channels[0]
                 channels[0] = channels[2]
                 channels[2] = red_channel
@@ -160,12 +155,11 @@ class Engine(BaseEngine):
             return cv.fromarray(cv2.merge(channels))
         finally:
             gdal_img = None
-            gdal.Unlink(mem_map_name) # Cleanup.
-
+            gdal.Unlink(mem_map_name)  # Cleanup.
 
     def read_vsimem(self, fn):
         """Read GDAL vsimem files"""
-        vsifile = gdal.VSIFOpenL(fn,'r')
+        vsifile = gdal.VSIFOpenL(fn, 'r')
         gdal.VSIFSeekL(vsifile, 0, 2)
         vsileng = gdal.VSIFTellL(vsifile)
         gdal.VSIFSeekL(vsifile, 0, 0)
@@ -176,9 +170,10 @@ class Engine(BaseEngine):
         mem_map_name = '/vsimem/{}'.format(uuid.uuid4().get_hex())
         driver = gdal.GetDriverByName('GTiff')
         w, h = channels[0].shape
-        gdal_img = driver.Create(mem_map_name, w, h, len(channels), gdal.GDT_Float32)
+        gdal_img = None
         try:
             if len(channels) == 1:
+                gdal_img = driver.Create(mem_map_name, w, h, len(channels), gdal.GDT_Float32)
                 outband = gdal_img.GetRasterBand(1)
                 outband.WriteArray(channels[0], 0, 0)
                 outband.SetNoDataValue(-32767)
@@ -188,10 +183,30 @@ class Engine(BaseEngine):
                 gdal_img = None
                 return self.read_vsimem(mem_map_name)
             else:
-                raise NotImplementedError
+                gdal_img = driver.Create(mem_map_name, w, h, len(channels), gdal.GDT_Byte)
+                band_order = [2, 1, 0, 3]
+                img_bands = [gdal_img.GetRasterBand(i) for i in range(1, 5)]
+                for outband, band_i in zip(img_bands, band_order):
+                    print "Writing to band_i: {}".format(band_i)
+                    outband.WriteArray(channels[band_i], 0, 0)
+                    outband.SetNoDataValue(-32767)
+                    outband.FlushCache()
+                    outband = None
+                geo = self.context.request.geo_info
+
+                gdal_img.SetGeoTransform([geo['upper_left_x'], geo['res'], 0, geo['upper_left_y'], 0, -geo['res']])
+
+                # Set projection
+                srs = osr.SpatialReference()
+                srs.ImportFromEPSG(3857)
+                gdal_img.SetProjection(srs.ExportToWkt())
+
+                gdal_img.FlushCache()
+                gdal_img = None
+                return self.read_vsimem(mem_map_name)
         finally:
             gdal_img = None
-            gdal.Unlink(mem_map_name) # Cleanup.
+            gdal.Unlink(mem_map_name)  # Cleanup.
 
     @property
     def size(self):
