@@ -72,6 +72,42 @@ class Engine(BaseEngine):
         cv.Set(img0, color)
         return img0
 
+
+    def read(self, extension=None, quality=None):
+
+        if not extension and FORMATS[self.extension] == 'TIFF':
+            # If the image loaded was a tiff, return the buffer created earlier.
+            return self.buffer
+        else:
+            if quality is None:
+                quality = self.context.config.QUALITY
+            options = None
+            extension = extension or self.extension
+            try:
+                if FORMATS[extension] == 'JPEG':
+                    options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
+            except KeyError:
+                # default is JPEG so
+                options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
+            if FORMATS[extension] == 'TIFF':
+                channels = cv2.split(numpy.asarray(self.image))
+                # If it's a floating point TIFF, use PIL since cv.EncodeImage only supports
+                # 8 bit integer channels.
+                if channels[0].dtype.kind == 'f':
+                    data = self.write_channels_to_tiff_buffer(channels)
+                else:
+                    data = cv.EncodeImage(extension, self.image, options or []).tostring()
+            else:
+                data = cv.EncodeImage(extension, self.image, options or []).tostring()
+
+            if FORMATS[extension] == 'JPEG' and self.context.config.PRESERVE_EXIF_INFO:
+                if hasattr(self, 'exif'):
+                    img = JpegFile.fromString(data)
+                    img._segments.insert(0, ExifSegment(self.exif_marker, None, self.exif, 'rw'))
+                    data = img.writeString()
+
+        return data
+
     def create_image(self, buffer, create_alpha=True):
         self.extension = self.extension or '.tif'
         self.no_data_value = None
@@ -122,6 +158,37 @@ class Engine(BaseEngine):
                 self.no_data_value = gdal_img.GetRasterBand(1).GetNoDataValue()
                 channels.append(numpy.float32(gdal_img.GetRasterBand(1).GetMaskBand().ReadAsArray()))
             return cv.fromarray(cv2.merge(channels))
+        finally:
+            gdal_img = None
+            gdal.Unlink(mem_map_name) # Cleanup.
+
+
+    def read_vsimem(self, fn):
+        """Read GDAL vsimem files"""
+        vsifile = gdal.VSIFOpenL(fn,'r')
+        gdal.VSIFSeekL(vsifile, 0, 2)
+        vsileng = gdal.VSIFTellL(vsifile)
+        gdal.VSIFSeekL(vsifile, 0, 0)
+        return gdal.VSIFReadL(1, vsileng, vsifile)
+
+    def write_channels_to_tiff_buffer(self, channels):
+
+        mem_map_name = '/vsimem/{}'.format(uuid.uuid4().get_hex())
+        driver = gdal.GetDriverByName('GTiff')
+        w, h = channels[0].shape
+        gdal_img = driver.Create(mem_map_name, w, h, len(channels), gdal.GDT_Float32)
+        try:
+            if len(channels) == 1:
+                outband = gdal_img.GetRasterBand(1)
+                outband.WriteArray(channels[0], 0, 0)
+                outband.SetNoDataValue(-32767)
+                outband.FlushCache()
+                outband = None
+                gdal_img.FlushCache()
+                gdal_img = None
+                return self.read_vsimem(mem_map_name)
+            else:
+                raise NotImplementedError
         finally:
             gdal_img = None
             gdal.Unlink(mem_map_name) # Cleanup.
@@ -181,45 +248,6 @@ class Engine(BaseEngine):
 
     def flip_horizontally(self):
         cv.Flip(self.image, None, 0)
-
-    def read(self, extension=None, quality=None):
-
-        if not extension and FORMATS[self.extension] == 'TIFF':
-            # If the image loaded was a tiff, return the buffer created earlier.
-            return self.buffer
-        else:
-            if quality is None:
-                quality = self.context.config.QUALITY
-            options = None
-            extension = extension or self.extension
-            try:
-                if FORMATS[extension] == 'JPEG':
-                    options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
-            except KeyError:
-                # default is JPEG so
-                options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
-            if FORMATS[extension] == 'TIFF':
-                channels = cv2.split(numpy.asarray(self.image))
-                # If it's a floating point TIFF, use PIL since cv.EncodeImage only supports
-                # 8 bit integer channels. If we need more than single channel 32 bit tiffs
-                # we should switch over to using GDAL as we do for reads.
-                if channels[0].dtype.kind == 'f':
-                    pil_image = Image.fromarray(channels[0])
-                    buff = io.BytesIO()
-                    pil_image.save(buff, 'TIFF')
-                    data = buff.getvalue()
-                else:
-                    data = cv.EncodeImage(extension, self.image, options or []).tostring()
-            else:
-                data = cv.EncodeImage(extension, self.image, options or []).tostring()
-
-            if FORMATS[extension] == 'JPEG' and self.context.config.PRESERVE_EXIF_INFO:
-                if hasattr(self, 'exif'):
-                    img = JpegFile.fromString(data)
-                    img._segments.insert(0, ExifSegment(self.exif_marker, None, self.exif, 'rw'))
-                    data = img.writeString()
-
-        return data
 
     def set_image_data(self, data):
         cv.SetData(self.image, data)
