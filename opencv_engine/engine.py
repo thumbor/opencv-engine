@@ -173,6 +173,7 @@ class Engine(BaseEngine):
         gdal_img = None
         try:
             if len(channels) == 1:
+                # DEM Tiff (32 bit floating point single channel)
                 gdal_img = driver.Create(mem_map_name, w, h, len(channels), gdal.GDT_Float32)
                 outband = gdal_img.GetRasterBand(1)
                 outband.WriteArray(channels[0], 0, 0)
@@ -180,32 +181,33 @@ class Engine(BaseEngine):
                 outband.FlushCache()
                 outband = None
                 gdal_img.FlushCache()
-                gdal_img = None
                 return self.read_vsimem(mem_map_name)
-            else:
+            elif len(channels) == 4:
+                # BGRA 8 bit unsigned int.
                 gdal_img = driver.Create(mem_map_name, w, h, len(channels), gdal.GDT_Byte)
                 band_order = [2, 1, 0, 3]
                 img_bands = [gdal_img.GetRasterBand(i) for i in range(1, 5)]
                 for outband, band_i in zip(img_bands, band_order):
-                    print "Writing to band_i: {}".format(band_i)
                     outband.WriteArray(channels[band_i], 0, 0)
                     outband.SetNoDataValue(-32767)
                     outband.FlushCache()
-                    outband = None
-                geo = self.context.request.geo_info
+                    del outband
+                del img_bands
 
-                gdal_img.SetGeoTransform([geo['upper_left_x'], geo['res'], 0, geo['upper_left_y'], 0, -geo['res']])
+                if hasattr(self.context.request, 'geo_info'):
+                    geo = self.context.request.geo_info
+                    gdal_img.SetGeoTransform([geo['upper_left_x'], geo['res'], 0, geo['upper_left_y'], 0, -geo['res']])
 
                 # Set projection
                 srs = osr.SpatialReference()
                 srs.ImportFromEPSG(3857)
                 gdal_img.SetProjection(srs.ExportToWkt())
-
                 gdal_img.FlushCache()
-                gdal_img = None
+
+                del srs
                 return self.read_vsimem(mem_map_name)
         finally:
-            gdal_img = None
+            del gdal_img
             gdal.Unlink(mem_map_name)  # Cleanup.
 
     @property
