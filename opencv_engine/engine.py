@@ -196,7 +196,7 @@ class Engine(BaseEngine):
 
                 if hasattr(self.context.request, 'geo_info'):
                     geo = self.context.request.geo_info
-                    gdal_img.SetGeoTransform([geo['upper_left_x'], geo['res'], 0, geo['upper_left_y'], 0, -geo['res']])
+                    gdal_img.SetGeoTransform([geo['upper_left_x'], geo['resx'], 0, geo['upper_left_y'], 0, -geo['resy']])
 
                 # Set projection
                 srs = osr.SpatialReference()
