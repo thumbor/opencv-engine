@@ -181,6 +181,8 @@ class Engine(BaseEngine):
                 outband.FlushCache()
                 outband = None
                 gdal_img.FlushCache()
+
+                self.set_geo_info(gdal_img)
                 return self.read_vsimem(mem_map_name)
             elif len(channels) == 4:
                 # BGRA 8 bit unsigned int.
@@ -194,21 +196,25 @@ class Engine(BaseEngine):
                     del outband
                 del img_bands
 
-                if hasattr(self.context.request, 'geo_info'):
-                    geo = self.context.request.geo_info
-                    gdal_img.SetGeoTransform([geo['upper_left_x'], geo['resx'], 0, geo['upper_left_y'], 0, -geo['resy']])
-
-                # Set projection
-                srs = osr.SpatialReference()
-                srs.ImportFromEPSG(3857)
-                gdal_img.SetProjection(srs.ExportToWkt())
-                gdal_img.FlushCache()
-
-                del srs
+                self.set_geo_info(gdal_img)
                 return self.read_vsimem(mem_map_name)
         finally:
             del gdal_img
             gdal.Unlink(mem_map_name)  # Cleanup.
+
+    def set_geo_info(self, gdal_img):
+        """ Set the georeferencing information for the given gdal image.
+        """
+        if hasattr(self.context.request, 'geo_info'):
+            geo = self.context.request.geo_info
+            gdal_img.SetGeoTransform([geo['upper_left_x'], geo['resx'], 0, geo['upper_left_y'], 0, -geo['resy']])
+
+        # Set projection
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(3857)
+        gdal_img.SetProjection(srs.ExportToWkt())
+        gdal_img.FlushCache()
+        del srs
 
     @property
     def size(self):
