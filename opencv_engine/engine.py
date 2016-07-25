@@ -159,11 +159,16 @@ class Engine(BaseEngine):
 
     def read_vsimem(self, fn):
         """Read GDAL vsimem files"""
-        vsifile = gdal.VSIFOpenL(fn, 'r')
-        gdal.VSIFSeekL(vsifile, 0, 2)
-        vsileng = gdal.VSIFTellL(vsifile)
-        gdal.VSIFSeekL(vsifile, 0, 0)
-        return gdal.VSIFReadL(1, vsileng, vsifile)
+        vsifile = None
+        try:
+            vsifile = gdal.VSIFOpenL(fn, 'r')
+            gdal.VSIFSeekL(vsifile, 0, 2)
+            vsileng = gdal.VSIFTellL(vsifile)
+            gdal.VSIFSeekL(vsifile, 0, 0)
+            return gdal.VSIFReadL(1, vsileng, vsifile)
+        finally:
+            if vsifile:
+                gdal.VSIFCloseL(vsifile)
 
     def write_channels_to_tiff_buffer(self, channels):
 
