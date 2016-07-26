@@ -8,9 +8,7 @@
 # http://www.opensource.org/licenses/mit-license
 # Copyright (c) 2014 globo.com timehome@corp.globo.com
 
-import io
 import uuid
-from PIL import Image
 try:
     import cv
 except ImportError:
@@ -22,7 +20,27 @@ from pexif import JpegFile, ExifSegment
 import cv2
 import gdal
 import numpy
-from osgeo import  osr
+from osgeo import osr
+
+# need to monkey patch the BaseEngine.get_mimetype function to handle tiffs
+# has to be patched this way b/c called as both a classmethod and instance method internally in thumbor
+old_mime = BaseEngine.get_mimetype
+
+
+def new_mime(buffer):
+    ''' determine the mime type from the raw image data
+        Args:
+            buffer - raw image data
+        Returns:
+            mime - mime type of image
+    '''
+    mime = old_mime(buffer)
+    # tif files start with 'II'
+    if not mime and buffer.startswith('II'):
+        mime = 'image/tiff'
+    return mime
+
+BaseEngine.get_mimetype = staticmethod(new_mime)
 
 try:
     from thumbor.ext.filters import _composite
@@ -142,7 +160,7 @@ class Engine(BaseEngine):
             gdal.FileFromMemBuffer(mem_map_name, buffer)
             gdal_img = gdal.Open(mem_map_name)
 
-            channels = [gdal_img.GetRasterBand(i).ReadAsArray() for i in range(1, gdal_img.RasterCount+1)]
+            channels = [gdal_img.GetRasterBand(i).ReadAsArray() for i in range(1, gdal_img.RasterCount + 1)]
 
             if len(channels) >= 3:  # opencv is bgr not rgb.
                 red_channel = channels[0]
