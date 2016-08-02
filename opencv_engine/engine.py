@@ -92,32 +92,26 @@ class Engine(BaseEngine):
         return img0
 
     def read(self, extension=None, quality=None):
-
-        if not extension and FORMATS[self.extension] == 'TIFF':
-            # If the image loaded was a tiff, return the buffer created earlier.
+        fmt = FORMATS[self.extension]
+        if quality is None:
+            quality = self.context.config.QUALITY
+        options = None
+        try:
+            if fmt == 'JPEG':
+                options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
+        except KeyError:
+            # default is JPEG so
+            options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
+        if fmt == 'TIFF':
             return self.buffer
         else:
-            if quality is None:
-                quality = self.context.config.QUALITY
-            options = None
-            extension = extension or self.extension
-            try:
-                if FORMATS[extension] == 'JPEG':
-                    options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
-            except KeyError:
-                # default is JPEG so
-                options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
-            if FORMATS[extension] == 'TIFF':
-                channels = cv2.split(numpy.asarray(self.image))
-                data = self.write_channels_to_tiff_buffer(channels)
-            else:
-                data = cv.EncodeImage(extension, self.image, options or []).tostring()
+            data = cv.EncodeImage(self.extension, self.image, options or []).tostring()
 
-            if FORMATS[extension] == 'JPEG' and self.context.config.PRESERVE_EXIF_INFO:
-                if hasattr(self, 'exif'):
-                    img = JpegFile.fromString(data)
-                    img._segments.insert(0, ExifSegment(self.exif_marker, None, self.exif, 'rw'))
-                    data = img.writeString()
+        if fmt == 'JPEG' and self.context.config.PRESERVE_EXIF_INFO:
+            if hasattr(self, 'exif'):
+                img = JpegFile.fromString(data)
+                img._segments.insert(0, ExifSegment(self.exif_marker, None, self.exif, 'rw'))
+                data = img.writeString()
 
         return data
 
