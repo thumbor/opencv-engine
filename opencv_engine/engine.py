@@ -92,7 +92,6 @@ class Engine(BaseEngine):
         return img0
 
     def read(self, extension=None, quality=None):
-
         if not extension and FORMATS[self.extension] == 'TIFF':
             # If the image loaded was a tiff, return the buffer created earlier.
             return self.buffer
@@ -107,8 +106,15 @@ class Engine(BaseEngine):
             except KeyError:
                 # default is JPEG so
                 options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
+
+            channels = cv2.split(numpy.asarray(self.image))
+            # Check if we should write a JPEG. If we are allowing defaulting to jpeg
+            # and if the alpha channel is all white (opaque).
+            if (getattr(self.context.request, 'default_to_jpeg', True) and
+                    len(channels) > 3 and numpy.all(channels[3] == 255)):
+                extension = '.jpg'
+
             if FORMATS[extension] == 'TIFF':
-                channels = cv2.split(numpy.asarray(self.image))
                 data = self.write_channels_to_tiff_buffer(channels)
             else:
                 data = cv.EncodeImage(extension, self.image, options or []).tostring()
@@ -189,7 +195,6 @@ class Engine(BaseEngine):
                 gdal.VSIFCloseL(vsifile)
 
     def write_channels_to_tiff_buffer(self, channels):
-
         mem_map_name = '/vsimem/{}.tiff'.format(uuid.uuid4().get_hex())
         driver = gdal.GetDriverByName('GTiff')
         w, h = channels[0].shape
