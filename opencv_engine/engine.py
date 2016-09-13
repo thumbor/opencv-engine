@@ -99,7 +99,7 @@ class Engine(BaseEngine):
             if quality is None:
                 quality = self.context.config.QUALITY
             options = None
-            extension = extension or self.extension
+            self.extension = extension or self.extension
 
             # Check if we should write a JPEG. If we are allowing defaulting to jpeg
             # and if the alpha channel is all white (opaque).
@@ -107,22 +107,22 @@ class Engine(BaseEngine):
             if hasattr(self.context, 'request') and getattr(self.context.request, 'default_to_jpeg', True):
                 channels = cv2.split(numpy.asarray(self.image))
                 if len(channels) > 3 and numpy.all(channels[3] == 255):
-                    extension = '.jpg'
+                    self.extension = '.jpg'
 
             try:
-                if FORMATS[extension] == 'JPEG':
+                if FORMATS[self.extension] == 'JPEG':
                     options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
             except KeyError:
                 # default is JPEG so
                 options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
 
-            if FORMATS[extension] == 'TIFF':
+            if FORMATS[self.extension] == 'TIFF':
                 channels = channels or cv2.split(numpy.asarray(self.image))
                 data = self.write_channels_to_tiff_buffer(channels)
             else:
-                data = cv.EncodeImage(extension, self.image, options or []).tostring()
+                data = cv.EncodeImage(self.extension, self.image, options or []).tostring()
 
-            if FORMATS[extension] == 'JPEG' and self.context.config.PRESERVE_EXIF_INFO:
+            if FORMATS[self.extension] == 'JPEG' and self.context.config.PRESERVE_EXIF_INFO:
                 if hasattr(self, 'exif'):
                     img = JpegFile.fromString(data)
                     img._segments.insert(0, ExifSegment(self.exif_marker, None, self.exif, 'rw'))
