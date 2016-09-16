@@ -44,7 +44,7 @@ class Engine(BaseEngine):
             return None
 
     def gen_image(self, size, color_value):
-        img = np.zeros((size[1], size[0], self.image.dtype), self.image_channels)
+        img = np.zeros((size[1], size[0]), self.image.dtype, self.image_channels)
         # img0 = cv.CreateImage(size, self.image_depth, self.image_channels)
         if color_value == 'transparent':
             color = (255, 255, 255, 255)
@@ -88,7 +88,6 @@ class Engine(BaseEngine):
         pass
 
     def resize(self, width, height):
-        print('WXH', width, height)
         r = height / self.image.shape[0]
         width = int(self.image.shape[1] * r)
         dim = (int(round(width, 0)), int(round(height, 0)))
@@ -121,7 +120,6 @@ class Engine(BaseEngine):
         except KeyError:
             # default is JPEG so
             options = [cv.IMWRITE_JPEG_QUALITY, quality]
-        print('IMAGE SHAPE: ', self.image)
 
         success, buf = cv.imencode(extension, self.image, options or [])
         data = buf.tostring()
@@ -135,7 +133,6 @@ class Engine(BaseEngine):
         return data
 
     def set_image_data(self, data):
-        print(data)
         self.image = np.frombuffer(data, dtype=self.image.dtype).reshape(self.image.shape)
 
     def image_data_as_rgb(self, update_image=True):
@@ -148,10 +145,10 @@ class Engine(BaseEngine):
             mode = 'BGR'
             # rgb_copy = cv.CreateImage((self.image.width, self.image.height), 8, 3)
             shape = self.image.shape
-            rgb_copy = np.zeros((shape[1], shape[0], np.uint8), 3)
+            rgb_copy = np.zeros((shape[1], shape[0]), np.uint8, 3)
             cv.cvtColor(self.image, cv.COLOR_GRAY2BGR, rgb_copy)
             self.image = rgb_copy
-        return mode, self.image.toBytes()
+        return mode, self.image.tostring()
 
     def draw_rectangle(self, x, y, width, height):
         cv.rectangle(self.image, (int(x), int(y)), (int(x + width), int(y + height)), (255, 255, 255))
@@ -161,9 +158,8 @@ class Engine(BaseEngine):
             # FIXME: OpenCV does not support grayscale with alpha channel?
             # grayscaled = cv.CreateImage((self.image.width, self.image.height), self.image_depth, 1)
             shape = self.image.shape
-            grayscaled = np.zeros((shape[1], shape[0], self.image.dtype), 1)
-            cv.cvtColor(self.image, cv.COLOR_BGRA2GRAY, grayscaled)
-            self.image = grayscaled
+            #grayscaled = np.zeros((shape[1], shape[0]), self.image.dtype, 3)
+            self.image = cv.cvtColor(self.image, cv.COLOR_BGRA2GRAY)
 
     def paste(self, other_engine, pos, merge=True):
         if merge and not FILTERS_AVAILABLE:
@@ -189,7 +185,8 @@ class Engine(BaseEngine):
     def enable_alpha(self):
         if self.image_channels < 4:
             shape = self.image.shape
-            with_alpha = np.zeros((shape[1], shape[0], self.image.dtype), 4)
+            print(type(shape[1]), type(shape[0]), type(self.image.dtype))
+            with_alpha = np.zeros((shape[1], shape[0]), self.image.dtype, 4)
             if self.image_channels == 3:
                 cv.cvtColor(self.image, cv.COLOR_BGR2BGRA, with_alpha)
             else:
