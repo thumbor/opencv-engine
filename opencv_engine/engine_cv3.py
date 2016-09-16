@@ -98,9 +98,9 @@ class Engine(BaseEngine):
 
     def rotate(self, degrees):
         shape = self.image.shape
-        image_center = tuple(np.array(shape[1], shape[0]) / 2)
+        image_center = (shape[0] / 2, shape[1] / 2)
         rot_mat = cv2.getRotationMatrix2D(image_center, degrees, 1.0)
-        self.image = cv2.warpAffine(self.image, rot_mat, self.image.shape, flags=cv2.INTER_LINEAR)
+        self.image = cv2.warpAffine(self.image, rot_mat, dsize=shape[0:2])
 
     def flip_vertically(self):
         self.image = np.flipud(self.image)
@@ -191,5 +191,5 @@ class Engine(BaseEngine):
             if self.image_channels == 3:
                 cv2.cvtColor(self.image, cv2.COLOR_BGR2BGRA, with_alpha)
             else:
-                cv2.CvtColor(self.image, cv2.COLOR_GRAY2BGRA, with_alpha)
+                cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGRA, with_alpha)
             self.image = with_alpha
