@@ -18,7 +18,8 @@ FORMATS = {
     '.jpg': 'JPEG',
     '.jpeg': 'JPEG',
     '.gif': 'GIF',
-    '.png': 'PNG'
+    '.png': 'PNG',
+    '.webp': 'WEBP'
 }
 
 
@@ -121,6 +122,12 @@ class Engine(BaseEngine):
             # default is JPEG so
             options = [cv.IMWRITE_JPEG_QUALITY, quality]
 
+        try:
+            if FORMATS[extension] == 'WEBP':
+                options = [cv.IMWRITE_WEBP_QUALITY, quality]
+        except KeyError:
+            options = [cv.IMWRITE_JPEG_QUALITY, quality]
+
         success, buf = cv.imencode(extension, self.image, options or [])
         data = buf.tostring()
 
@@ -143,7 +150,6 @@ class Engine(BaseEngine):
             mode = 'BGR'
         else:
             mode = 'BGR'
-            # rgb_copy = cv.CreateImage((self.image.width, self.image.height), 8, 3)
             shape = self.image.shape
             rgb_copy = np.zeros((shape[1], shape[0]), np.uint8, 3)
             cv.cvtColor(self.image, cv.COLOR_GRAY2BGR, rgb_copy)
@@ -155,10 +161,7 @@ class Engine(BaseEngine):
 
     def convert_to_grayscale(self):
         if self.image_channels >= 3:
-            # FIXME: OpenCV does not support grayscale with alpha channel?
-            # grayscaled = cv.CreateImage((self.image.width, self.image.height), self.image_depth, 1)
             shape = self.image.shape
-            #grayscaled = np.zeros((shape[1], shape[0]), self.image.dtype, 3)
             self.image = cv.cvtColor(self.image, cv.COLOR_BGRA2GRAY)
 
     def paste(self, other_engine, pos, merge=True):
