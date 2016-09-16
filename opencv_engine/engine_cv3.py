@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# Licensed under the MIT license:
+# http://www.opensource.org/licenses/mit-license
+# Copyright (c) 2016 fanhero.com christian@fanhero.com
 
-import cv2 as cv
+import cv2
 from colour import Color
 import numpy as np
 from thumbor.engines import BaseEngine
@@ -46,14 +49,12 @@ class Engine(BaseEngine):
 
     def gen_image(self, size, color_value):
         img = np.zeros((size[1], size[0]), self.image.dtype, self.image_channels)
-        # img0 = cv.CreateImage(size, self.image_depth, self.image_channels)
         if color_value == 'transparent':
             color = (255, 255, 255, 255)
         else:
             color = self.parse_hex_color(color_value)
             if not color:
                 raise ValueError('Color %s is not valid.' % color_value)
-        # cv.Set(img0, color)
         img[:] = color
         return img
 
@@ -67,9 +68,7 @@ class Engine(BaseEngine):
         except KeyError:
             pass
 
-        # imagefiledata = cv.CreateMatHeader(1, len(buffer), cv.CV_8UC1)
-        # cv.SetData(imagefiledata, buffer, len(buffer))
-        img = cv.imdecode(np.frombuffer(buffer, np.uint8), -1)
+        img = cv2.imdecode(np.frombuffer(buffer, np.uint8), -1)
         if FORMATS[self.extension] == 'JPEG':
             try:
                 info = JpegFile.fromString(buffer).get_exif()
@@ -92,7 +91,7 @@ class Engine(BaseEngine):
         r = height / self.image.shape[0]
         width = int(self.image.shape[1] * r)
         dim = (int(round(width, 0)), int(round(height, 0)))
-        self.image = cv.resize(self.image, dim, interpolation=cv.INTER_AREA)
+        self.image = cv2.resize(self.image, dim, interpolation=cv2.INTER_AREA)
 
     def crop(self, left, top, right, bottom):
         self.image = self.image[top: bottom, left: right]
@@ -100,8 +99,8 @@ class Engine(BaseEngine):
     def rotate(self, degrees):
         shape = self.image.shape
         image_center = tuple(np.array(shape[1], shape[0]) / 2)
-        rot_mat = cv.getRotationMatrix2D(image_center, degrees, 1.0)
-        self.image = cv.warpAffine(self.image, rot_mat, self.image.shape, flags=cv.INTER_LINEAR)
+        rot_mat = cv2.getRotationMatrix2D(image_center, degrees, 1.0)
+        self.image = cv2.warpAffine(self.image, rot_mat, self.image.shape, flags=cv2.INTER_LINEAR)
 
     def flip_vertically(self):
         self.image = np.flipud(self.image)
@@ -117,18 +116,18 @@ class Engine(BaseEngine):
         extension = extension or self.extension
         try:
             if FORMATS[extension] == 'JPEG':
-                options = [cv.IMWRITE_JPEG_QUALITY, quality]
+                options = [cv2.IMWRITE_JPEG_QUALITY, quality]
         except KeyError:
             # default is JPEG so
-            options = [cv.IMWRITE_JPEG_QUALITY, quality]
+            options = [cv2.IMWRITE_JPEG_QUALITY, quality]
 
         try:
             if FORMATS[extension] == 'WEBP':
-                options = [cv.IMWRITE_WEBP_QUALITY, quality]
+                options = [cv2.IMWRITE_WEBP_QUALITY, quality]
         except KeyError:
-            options = [cv.IMWRITE_JPEG_QUALITY, quality]
+            options = [cv2.IMWRITE_JPEG_QUALITY, quality]
 
-        success, buf = cv.imencode(extension, self.image, options or [])
+        success, buf = cv2.imencode(extension, self.image, options or [])
         data = buf.tostring()
 
         if FORMATS[extension] == 'JPEG' and self.context.config.PRESERVE_EXIF_INFO:
@@ -143,7 +142,6 @@ class Engine(BaseEngine):
         self.image = np.frombuffer(data, dtype=self.image.dtype).reshape(self.image.shape)
 
     def image_data_as_rgb(self, update_image=True):
-        # TODO: Handle other formats
         if self.image_channels == 4:
             mode = 'BGRA'
         elif self.image_channels == 3:
@@ -152,17 +150,17 @@ class Engine(BaseEngine):
             mode = 'BGR'
             shape = self.image.shape
             rgb_copy = np.zeros((shape[1], shape[0]), np.uint8, 3)
-            cv.cvtColor(self.image, cv.COLOR_GRAY2BGR, rgb_copy)
+            cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGR, rgb_copy)
             self.image = rgb_copy
         return mode, self.image.tostring()
 
     def draw_rectangle(self, x, y, width, height):
-        cv.rectangle(self.image, (int(x), int(y)), (int(x + width), int(y + height)), (255, 255, 255))
+        cv2.rectangle(self.image, (int(x), int(y)), (int(x + width), int(y + height)), (255, 255, 255))
 
     def convert_to_grayscale(self):
         if self.image_channels >= 3:
             shape = self.image.shape
-            self.image = cv.cvtColor(self.image, cv.COLOR_BGRA2GRAY)
+            self.image = cv2.cvtColor(self.image, cv2COLOR_BGRA2GRAY)
 
     def paste(self, other_engine, pos, merge=True):
         if merge and not FILTERS_AVAILABLE:
@@ -191,7 +189,7 @@ class Engine(BaseEngine):
             print(type(shape[1]), type(shape[0]), type(self.image.dtype))
             with_alpha = np.zeros((shape[1], shape[0]), self.image.dtype, 4)
             if self.image_channels == 3:
-                cv.cvtColor(self.image, cv.COLOR_BGR2BGRA, with_alpha)
+                cv2.cvtColor(self.image, cv2.COLOR_BGR2BGRA, with_alpha)
             else:
-                cv.CvtColor(self.image, cv.COLOR_GRAY2BGRA, with_alpha)
+                cv2.CvtColor(self.image, cv2.COLOR_GRAY2BGRA, with_alpha)
             self.image = with_alpha
