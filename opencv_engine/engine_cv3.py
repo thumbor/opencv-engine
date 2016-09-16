@@ -160,7 +160,7 @@ class Engine(BaseEngine):
     def convert_to_grayscale(self):
         if self.image_channels >= 3:
             shape = self.image.shape
-            self.image = cv2.cvtColor(self.image, cv2COLOR_BGRA2GRAY)
+            self.image = cv2.cvtColor(self.image, cv2.COLOR_BGRA2GRAY)
 
     def paste(self, other_engine, pos, merge=True):
         if merge and not FILTERS_AVAILABLE:
