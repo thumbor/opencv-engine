@@ -105,13 +105,9 @@ class Engine(BaseEngine):
             # and if the alpha channel is all white (opaque).
             channels = None
             if hasattr(self.context, 'request') and getattr(self.context.request, 'default_to_jpeg', True):
-                try:
-                    np_data = numpy.asarray(self.image)
-                    channels = cv2.split(np_data)
-                    if len(channels) > 3 and numpy.all(channels[3] == 255):
-                        self.extension = '.jpg'
-                except:
-                    pass  # Never fail because we couldnt figure out of we should default to jpeg
+                channels = cv2.split(numpy.asarray(self.image))
+                if len(channels) > 3 and numpy.all(channels[3] == 255):
+                    self.extension = '.jpg'
 
             try:
                 if FORMATS[self.extension] == 'JPEG':
