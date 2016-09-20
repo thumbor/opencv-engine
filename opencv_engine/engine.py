@@ -61,8 +61,6 @@ FORMATS = {
 class Engine(BaseEngine):
 
     def read(self, extension=None, quality=None):
-        import pdb; pdb.set_trace()
-
         if not extension and FORMATS[self.extension] == 'TIFF':
             # If the image loaded was a tiff, return the buffer created earlier.
             return self.buffer
@@ -76,7 +74,6 @@ class Engine(BaseEngine):
             # and if the alpha channel is all white (opaque).
             channels = None
             if hasattr(self.context, 'request') and getattr(self.context.request, 'default_to_jpeg', True):
-                import pdb; pdb.set_trace()
                 channels = cv2.split(numpy.asarray(self.image))
                 if len(channels) > 3 and numpy.all(channels[3] == 255):
                     self.extension = '.jpg'
@@ -91,7 +88,6 @@ class Engine(BaseEngine):
                 channels = channels or cv2.split(numpy.asarray(self.image))
                 data = self.write_channels_to_tiff_buffer(channels)
             else:
-                import pdb; pdb.set_trace()
                 success, numpy_data = cv2.imencode(self.extension, numpy.asarray(self.image), options or [])
                 if success:
                     data = numpy_data.tostring()
@@ -117,11 +113,9 @@ class Engine(BaseEngine):
                 raise ValueError("opencv doesn't support gifs")
         except KeyError:
             pass
-        import pdb; pdb.set_trace()
 
         if FORMATS[self.extension] == 'TIFF':
             self.buffer = buffer
-            import pdb; pdb.set_trace()
             img0 = self.read_tiff(buffer, create_alpha)
         else:
             imagefiledata = cv.CreateMatHeader(1, len(buffer), cv.CV_8UC1)
