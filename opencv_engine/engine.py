@@ -228,29 +228,13 @@ class Engine(BaseEngine):
         self.image = self.image[y1:y2, x1:x2]
 
     def image_data_as_rgb(self, update_image=True):
-        raise NotImplementedError()
+        if self.image.channels == 4:
+            mode = 'BGRA'
+        elif self.image.channels == 3:
+            mode = 'BGR'
+        else:
+            raise NotImplementedError("Only support fetching image data as RGB for 3/4 channel images")
+        return mode, self.image.tostring()
 
-    def image_depth(self):
-        raise NotImplementedError()
-    def image_channels(self):
-        raise NotImplementedError()
-    def parse_hex_color(cls, color):
-        raise NotImplementedError()
-    def gen_image(self, size, color_value):
-        raise NotImplementedError()
-    def rotate(self, degrees):
-        raise NotImplementedError()
-    def flip_vertically(self):
-        raise NotImplementedError()
-    def flip_horizontally(self):
-        raise NotImplementedError()
     def set_image_data(self, data):
-        raise NotImplementedError()
-    def draw_rectangle(self, x, y, width, height):
-        raise NotImplementedError()
-    def convert_to_grayscale(self):
-        raise NotImplementedError()
-    def paste(self, other_engine, pos, merge=True):
-        raise NotImplementedError()
-    def enable_alpha(self):
-        raise NotImplementedError()
+        cv.SetData(self.image, data)
