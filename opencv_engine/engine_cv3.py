@@ -30,14 +30,18 @@ class Engine(BaseEngine):
     @property
     def image_depth(self):
         if self.image is None:
-            return 8
-        return self.image.dtype.itemsize
+            return np.uint8
+        return self.image.dtype
 
     @property
     def image_channels(self):
         if self.image is None:
             return 3
-        return self.image.shape[2]
+        # if the image is grayscale
+        try:
+            return self.image.shape[2]
+        except IndexError:
+            return 1
 
     @classmethod
     def parse_hex_color(cls, color):
@@ -48,14 +52,17 @@ class Engine(BaseEngine):
             return None
 
     def gen_image(self, size, color_value):
-        img = np.zeros((size[1], size[0]), self.image.dtype, self.image_channels)
         if color_value == 'transparent':
             color = (255, 255, 255, 255)
+            img = np.zeros((size[1], size[0], 4), self.image_depth)
         else:
+            img = np.zeros((size[1], size[0], self.image_channels), self.image_depth)
             color = self.parse_hex_color(color_value)
             if not color:
                 raise ValueError('Color %s is not valid.' % color_value)
+        print(color)
         img[:] = color
+        print('DONE')
         return img
 
     def create_image(self, buffer):
@@ -149,7 +156,7 @@ class Engine(BaseEngine):
         else:
             mode = 'BGR'
             shape = self.image.shape
-            rgb_copy = np.zeros((shape[1], shape[0]), np.uint8, 3)
+            rgb_copy = np.zeros((shape[1], shape[0], 3), self.image.dtype)
             cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGR, rgb_copy)
             self.image = rgb_copy
         return mode, self.image.tostring()
@@ -187,7 +194,7 @@ class Engine(BaseEngine):
         if self.image_channels < 4:
             shape = self.image.shape
             print(type(shape[1]), type(shape[0]), type(self.image.dtype))
-            with_alpha = np.zeros((shape[1], shape[0]), self.image.dtype, 4)
+            with_alpha = np.zeros((shape[1], shape[0], 4), self.image.dtype)
             if self.image_channels == 3:
                 cv2.cvtColor(self.image, cv2.COLOR_BGR2BGRA, with_alpha)
             else:
