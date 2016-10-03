@@ -6,8 +6,9 @@
 # Copyright (c) 2016 fanhero.com christian@fanhero.com
 
 import cv2
-from colour import Color
 import numpy as np
+
+from colour import Color
 from thumbor.engines import BaseEngine
 from pexif import JpegFile, ExifSegment
 
@@ -60,9 +61,7 @@ class Engine(BaseEngine):
             color = self.parse_hex_color(color_value)
             if not color:
                 raise ValueError('Color %s is not valid.' % color_value)
-        print(color)
         img[:] = color
-        print('DONE')
         return img
 
     def create_image(self, buffer):
@@ -84,19 +83,18 @@ class Engine(BaseEngine):
                     self.exif_marker = info.marker
             except Exception:
                 pass
-
         return img
 
     @property
     def size(self):
-        return self.image.shape[:2]
+        return self.image.shape[1], self.image.shape[0]
 
     def normalize(self):
         pass
 
     def resize(self, width, height):
-        r = height / self.image.shape[0]
-        width = int(self.image.shape[1] * r)
+        r = height / self.size[1]
+        width = int(self.size[0] * r)
         dim = (int(round(width, 0)), int(round(height, 0)))
         self.image = cv2.resize(self.image, dim, interpolation=cv2.INTER_AREA)
 
@@ -104,10 +102,9 @@ class Engine(BaseEngine):
         self.image = self.image[top: bottom, left: right]
 
     def rotate(self, degrees):
-        shape = self.image.shape
-        image_center = (shape[0] / 2, shape[1] / 2)
+        image_center = (self.size[1] / 2, self.size[0] / 2)
         rot_mat = cv2.getRotationMatrix2D(image_center, degrees, 1.0)
-        self.image = cv2.warpAffine(self.image, rot_mat, dsize=shape[0:2])
+        self.image = cv2.warpAffine(self.image, rot_mat, dsize=self.size)
 
     def flip_vertically(self):
         self.image = np.flipud(self.image)
@@ -155,8 +152,7 @@ class Engine(BaseEngine):
             mode = 'BGR'
         else:
             mode = 'BGR'
-            shape = self.image.shape
-            rgb_copy = np.zeros((shape[1], shape[0], 3), self.image.dtype)
+            rgb_copy = np.zeros((self.size[1], self.size[0], 3), self.image.dtype)
             cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGR, rgb_copy)
             self.image = rgb_copy
         return mode, self.image.tostring()
@@ -166,7 +162,6 @@ class Engine(BaseEngine):
 
     def convert_to_grayscale(self):
         if self.image_channels >= 3:
-            shape = self.image.shape
             self.image = cv2.cvtColor(self.image, cv2.COLOR_BGRA2GRAY)
 
     def paste(self, other_engine, pos, merge=True):
@@ -192,9 +187,7 @@ class Engine(BaseEngine):
 
     def enable_alpha(self):
         if self.image_channels < 4:
-            shape = self.image.shape
-            print(type(shape[1]), type(shape[0]), type(self.image.dtype))
-            with_alpha = np.zeros((shape[1], shape[0], 4), self.image.dtype)
+            with_alpha = np.zeros((self.size[1], self.size[0], 4), self.image.dtype)
             if self.image_channels == 3:
                 cv2.cvtColor(self.image, cv2.COLOR_BGR2BGRA, with_alpha)
             else:
