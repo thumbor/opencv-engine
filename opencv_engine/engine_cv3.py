@@ -6,8 +6,9 @@
 # Copyright (c) 2016 fanhero.com christian@fanhero.com
 
 import cv2
-from colour import Color
 import numpy as np
+
+from colour import Color
 from thumbor.engines import BaseEngine
 from pexif import JpegFile, ExifSegment
 
@@ -60,9 +61,7 @@ class Engine(BaseEngine):
             color = self.parse_hex_color(color_value)
             if not color:
                 raise ValueError('Color %s is not valid.' % color_value)
-        print(color)
         img[:] = color
-        print('DONE')
         return img
 
     def create_image(self, buffer):
@@ -77,6 +76,7 @@ class Engine(BaseEngine):
 
         img = cv2.imdecode(np.frombuffer(buffer, np.uint8), -1)
         if FORMATS[self.extension] == 'JPEG':
+            self.exif = None
             try:
                 info = JpegFile.fromString(buffer).get_exif()
                 if info:
@@ -84,19 +84,18 @@ class Engine(BaseEngine):
                     self.exif_marker = info.marker
             except Exception:
                 pass
-
         return img
 
     @property
     def size(self):
-        return self.image.shape[:2]
+        return self.image.shape[1], self.image.shape[0]
 
     def normalize(self):
         pass
 
     def resize(self, width, height):
-        r = height / self.image.shape[0]
-        width = int(self.image.shape[1] * r)
+        r = height / self.size[1]
+        width = int(self.size[0] * r)
         dim = (int(round(width, 0)), int(round(height, 0)))
         self.image = cv2.resize(self.image, dim, interpolation=cv2.INTER_AREA)
 
@@ -104,10 +103,35 @@ class Engine(BaseEngine):
         self.image = self.image[top: bottom, left: right]
 
     def rotate(self, degrees):
-        shape = self.image.shape
-        image_center = (shape[0] / 2, shape[1] / 2)
-        rot_mat = cv2.getRotationMatrix2D(image_center, degrees, 1.0)
-        self.image = cv2.warpAffine(self.image, rot_mat, dsize=shape[0:2])
+        # see http://stackoverflow.com/a/23990392
+        if degrees == 90:
+            self.image = cv2.transpose(self.image)
+            cv2.flip(self.image, 0, self.image)
+        elif degrees == 180:
+            cv2.flip(self.image, -1, self.image)
+        elif degrees == 270:
+            self.image = cv2.transpose(self.image)
+            cv2.flip(self.image, 1, self.image)
+        else:
+            # see http://stackoverflow.com/a/37347070
+            # one pixel glitch seems to happen with 90/180/270
+            # degrees pictures in this algorithm if you check
+            # the typical github.com/recurser/exif-orientation-examples
+            # but the above transpose/flip algorithm is working fine
+            # for those cases already
+            width, height = self.size
+            image_center = (width / 2, height / 2)
+            rot_mat = cv2.getRotationMatrix2D(image_center, degrees, 1.0)
+
+            abs_cos = abs(rot_mat[0, 0])
+            abs_sin = abs(rot_mat[0, 1])
+            bound_w = int((height * abs_sin) + (width * abs_cos))
+            bound_h = int((height * abs_cos) + (width * abs_sin))
+
+            rot_mat[0, 2] += ((bound_w / 2) - image_center[0])
+            rot_mat[1, 2] += ((bound_h / 2) - image_center[1])
+
+            self.image = cv2.warpAffine(self.image, rot_mat, (bound_w, bound_h))
 
     def flip_vertically(self):
         self.image = np.flipud(self.image)
@@ -155,8 +179,7 @@ class Engine(BaseEngine):
             mode = 'BGR'
         else:
             mode = 'BGR'
-            shape = self.image.shape
-            rgb_copy = np.zeros((shape[1], shape[0], 3), self.image.dtype)
+            rgb_copy = np.zeros((self.size[1], self.size[0], 3), self.image.dtype)
             cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGR, rgb_copy)
             self.image = rgb_copy
         return mode, self.image.tostring()
@@ -164,10 +187,15 @@ class Engine(BaseEngine):
     def draw_rectangle(self, x, y, width, height):
         cv2.rectangle(self.image, (int(x), int(y)), (int(x + width), int(y + height)), (255, 255, 255))
 
-    def convert_to_grayscale(self):
-        if self.image_channels >= 3:
-            shape = self.image.shape
-            self.image = cv2.cvtColor(self.image, cv2.COLOR_BGRA2GRAY)
+    def convert_to_grayscale(self, update_image=True, with_alpha=True):
+        image = None
+        if self.image_channels >= 3 and with_alpha:
+            image = cv2.cvtColor(self.image, cv2.COLOR_BGRA2GRAY)
+        elif self.image_channels >= 3:
+            image = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+        if update_image:
+            self.image = image
+        return image
 
     def paste(self, other_engine, pos, merge=True):
         if merge and not FILTERS_AVAILABLE:
@@ -192,9 +220,7 @@ class Engine(BaseEngine):
 
     def enable_alpha(self):
         if self.image_channels < 4:
-            shape = self.image.shape
-            print(type(shape[1]), type(shape[0]), type(self.image.dtype))
-            with_alpha = np.zeros((shape[1], shape[0], 4), self.image.dtype)
+            with_alpha = np.zeros((self.size[1], self.size[0], 4), self.image.dtype)
             if self.image_channels == 3:
                 cv2.cvtColor(self.image, cv2.COLOR_BGR2BGRA, with_alpha)
             else:
