@@ -160,9 +160,20 @@ class Engine(BaseEngine):
     def draw_rectangle(self, x, y, width, height):
         cv2.rectangle(self.image, (int(x), int(y)), (int(x + width), int(y + height)), (255, 255, 255))
 
-    def convert_to_grayscale(self):
-        if self.image_channels >= 3:
-            self.image = cv2.cvtColor(self.image, cv2.COLOR_BGRA2GRAY)
+    def convert_to_grayscale(self, update_image=True, with_alpha=True):
+        print(self.image_channels)
+        if self.image_channels is 4 and with_alpha:
+            image = cv2.cvtColor(self.image, cv2.COLOR_BGRA2GRAY)
+        elif self.image_channels > 1:
+            image = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+            image = self.image
+            #Already grayscale, no need to filter
+        else:
+            image = self.image 
+
+        if update_image:
+            self.image = image
+        return image
 
     def paste(self, other_engine, pos, merge=True):
         if merge and not FILTERS_AVAILABLE:
