@@ -10,9 +10,6 @@ before_install:
     - sudo pip install opencv-python
     - export PYTHONPATH=$PYTHONPATH:/usr/lib/pymodules/python2.7
 
-    # verify all requirements were met
-    - INSTALLDIR=$(python -c "import os; import numpy; import cv2; print(os.path.dirname(cv2.__file__))")
-
 install:
     # install python requirements
     - make setup
