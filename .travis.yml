@@ -7,7 +7,7 @@ before_install:
     - sudo apt-get update
 
     # help python importing cv and/or cv2
-    - sudo pip install python-opencv
+    - sudo pip install opencv-python
     - export PYTHONPATH=$PYTHONPATH:/usr/lib/pymodules/python2.7
 
     # verify all requirements were met
