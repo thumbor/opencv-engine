@@ -4,10 +4,10 @@ python:
 
 before_install:
     # update aptitude
-    - apt-get update
+    - sudo apt-get update
 
-    - apt-get install python-opencv
-    - dpkg -L python-opencv
+    - sudo apt-get install python-opencv
+    - sudo dpkg -L python-opencv
 
 install:
     # install python requirements
