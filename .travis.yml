@@ -4,11 +4,10 @@ python:
 
 before_install:
     # update aptitude
-    - sudo apt-get update
+    - apt-get update
 
-    # help python importing cv and/or cv2
-    - python -m pip install -U pip
-    - pip install python-opencv
+    - apt-get install python-opencv
+    - dpkg -L python-opencv
 
 install:
     # install python requirements
@@ -17,5 +16,3 @@ install:
 script:
     # finally run tests
     - make test
-virtualenv:
-    system_site_packages: true
