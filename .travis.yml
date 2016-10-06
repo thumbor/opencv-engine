@@ -8,6 +8,7 @@ before_install:
 
     - sudo apt-get install python-opencv
     - sudo dpkg -L python-opencv
+    - export PYTHONPATH=$PYTHONPATH:/usr/lib/pymodules/python2.7
 
 install:
     # install python requirements
