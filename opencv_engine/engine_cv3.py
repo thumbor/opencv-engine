@@ -199,7 +199,7 @@ class Engine(BaseEngine):
         if update_image:
             self.image = image
         elif self.image_depth == np.uint16:
-            #Feature detector requres uint8 images
+            #Feature detector reqiures uint8 images
             image = np.array(image, dtype='uint8')
         return image
 
