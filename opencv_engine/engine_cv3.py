@@ -172,8 +172,8 @@ class Engine(BaseEngine):
             image = self.image 
 
         if update_image:
-            self.image = image
-        return image
+            self.image = image.astype(np.uint8)
+        return image.astype(np.uint8)
 
     def paste(self, other_engine, pos, merge=True):
         if merge and not FILTERS_AVAILABLE:
