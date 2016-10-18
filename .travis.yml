@@ -4,6 +4,7 @@ python:
 
 before_install:
     # update aptitude
+    - sudo add-apt-repository ppa:orangain/opencv
     - sudo apt-get update
     - sudo apt-get install -y python3-opencv
 
