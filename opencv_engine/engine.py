@@ -240,7 +240,7 @@ class Engine(BaseEngine):
 
     def rotate(self, degrees):
         """ rotates the image by specified number of degrees.
-            Uses more effecient flip and transform for multiples of 90
+            Uses more effecient flip and transpose for multiples of 90
 
             Args:
                 degrees - degrees to rotate image by (CCW)
