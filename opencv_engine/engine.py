@@ -17,7 +17,6 @@ except ImportError:
 
 from thumbor.engines import BaseEngine
 from pexif import JpegFile, ExifSegment
-import cv2
 import gdal
 import numpy
 from osgeo import osr
@@ -238,3 +237,52 @@ class Engine(BaseEngine):
 
     def set_image_data(self, data):
         cv.SetData(self.image, data)
+
+    def rotate(self, degrees):
+        """ rotates the image by specified number of degrees.
+            Uses more effecient flip and transpose for multiples of 90
+
+            Args:
+                degrees - degrees to rotate image by (CCW)
+        """
+        image = numpy.asarray(self.image)
+        # number passed to flip corresponds to rotation about: (0) x-axis, (1) y-axis, (-1) both axes
+        if degrees == 270:
+            transposed = cv2.transpose(image)
+            rotated = cv2.flip(transposed, 1)
+        elif degrees == 180:
+            rotated = cv2.flip(image, -1)
+        elif degrees == 90:
+            transposed = cv2.transpose(image)
+            rotated = cv2.flip(transposed, 0)
+        else:
+            rotated = self._rotate(image, degrees)
+
+        self.image = cv.fromarray(rotated)
+
+    def _rotate(self, image, degrees):
+        """ rotate an image about it's center by an arbitrary number of degrees
+
+            Args:
+                image - image to rotate (CvMat array)
+                degrees - number of degrees to rotate by (CCW)
+
+            Returns:
+                rotated image (numpy array)
+        """
+        (h, w) = image.shape[:2]
+        center = (w / 2, h / 2)
+
+        M = cv2.getRotationMatrix2D(center, degrees, 1.0)
+        rotated = cv2.warpAffine(image, M, (w, h))
+        return rotated
+
+    def flip_vertically(self):
+        """ flip an image vertically (about x-axis) """
+        image = numpy.asarray(self.image)
+        self.image = cv.fromarray(cv2.flip(image, 0))
+
+    def flip_horizontally(self):
+        """ flip an image horizontally (about y-axis) """
+        image = numpy.asarray(self.image)
+        self.image = cv.fromarray(cv2.flip(image, 1))
