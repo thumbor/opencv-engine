@@ -21,6 +21,8 @@ import gdal
 import numpy
 from osgeo import osr
 
+from lib.drone_common.logger import logger
+
 # need to monkey patch the BaseEngine.get_mimetype function to handle tiffs
 # has to be patched this way b/c called as both a classmethod and instance method internally in thumbor
 old_mime = BaseEngine.get_mimetype
@@ -286,3 +288,14 @@ class Engine(BaseEngine):
         """ flip an image horizontally (about y-axis) """
         image = numpy.asarray(self.image)
         self.image = cv.fromarray(cv2.flip(image, 1))
+
+    def _get_exif_segment(self):
+        """ Override because the superclass doesn't check for no exif.
+        """
+        segment = None
+        try:
+            if getattr(self, 'exif', None) is not None:
+                segment = ExifSegment(None, None, self.exif, 'ro')
+        except Exception:
+            logger.warning('Ignored error handling exif for reorientation', exc_info=True)
+        return segment
