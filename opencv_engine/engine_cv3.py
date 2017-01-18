@@ -76,6 +76,7 @@ class Engine(BaseEngine):
 
         img = cv2.imdecode(np.frombuffer(buffer, np.uint8), -1)
         if FORMATS[self.extension] == 'JPEG':
+            self.exif = None
             try:
                 info = JpegFile.fromString(buffer).get_exif()
                 if info:
@@ -102,9 +103,35 @@ class Engine(BaseEngine):
         self.image = self.image[top: bottom, left: right]
 
     def rotate(self, degrees):
-        image_center = (self.size[1] / 2, self.size[0] / 2)
-        rot_mat = cv2.getRotationMatrix2D(image_center, degrees, 1.0)
-        self.image = cv2.warpAffine(self.image, rot_mat, dsize=self.size)
+        # see http://stackoverflow.com/a/23990392
+        if degrees == 90:
+            self.image = cv2.transpose(self.image)
+            cv2.flip(self.image, 0, self.image)
+        elif degrees == 180:
+            cv2.flip(self.image, -1, self.image)
+        elif degrees == 270:
+            self.image = cv2.transpose(self.image)
+            cv2.flip(self.image, 1, self.image)
+        else:
+            # see http://stackoverflow.com/a/37347070
+            # one pixel glitch seems to happen with 90/180/270
+            # degrees pictures in this algorithm if you check
+            # the typical github.com/recurser/exif-orientation-examples
+            # but the above transpose/flip algorithm is working fine
+            # for those cases already
+            width, height = self.size
+            image_center = (width / 2, height / 2)
+            rot_mat = cv2.getRotationMatrix2D(image_center, degrees, 1.0)
+
+            abs_cos = abs(rot_mat[0, 0])
+            abs_sin = abs(rot_mat[0, 1])
+            bound_w = int((height * abs_sin) + (width * abs_cos))
+            bound_h = int((height * abs_cos) + (width * abs_sin))
+
+            rot_mat[0, 2] += ((bound_w / 2) - image_center[0])
+            rot_mat[1, 2] += ((bound_h / 2) - image_center[1])
+
+            self.image = cv2.warpAffine(self.image, rot_mat, (bound_w, bound_h))
 
     def flip_vertically(self):
         self.image = np.flipud(self.image)
