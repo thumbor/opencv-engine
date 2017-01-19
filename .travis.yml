@@ -7,7 +7,8 @@ before_install:
     - sudo apt-get update
 
     # verify all requirements were met
-    - INSTALLDIR=$(python -c "import os; import numpy; import cv; import cv2; print(os.path.dirname(cv2.__file__))")
+    - pip install opencv-python
+    - INSTALLDIR=$(python -c "import os; import numpy; import cv2; print(os.path.dirname(cv2.__file__))")
 
 install:
     # install python requirements
