@@ -46,6 +46,7 @@ OpenCV imaging engine for thumbor.
         'colour',
         'numpy',
         'thumbor',
+        'opencv-python',
     ],
     extras_require={
         'tests': tests_require,
