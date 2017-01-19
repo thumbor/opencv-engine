@@ -193,8 +193,14 @@ class Engine(BaseEngine):
             image = cv2.cvtColor(self.image, cv2.COLOR_BGRA2GRAY)
         elif self.image_channels >= 3:
             image = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+        elif self.image_channels == 1:
+            # Already grayscale,
+            image = self.image
         if update_image:
             self.image = image
+        elif self.image_depth == np.uint16:
+            #Feature detector requres uint8 images
+            image = np.array(image, dtype='uint8')
         return image
 
     def paste(self, other_engine, pos, merge=True):
