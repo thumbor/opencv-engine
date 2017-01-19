@@ -1,4 +1,4 @@
-opencv-engine [![Build Status](https://travis-ci.org/fanhero/remotecv.svg?branch=master)]
+opencv-engine [![Build Status](https://travis-ci.org/Arthien/opencv-engine.svg?branch=master)]
 ==============================================================================
 
 Thumbor engine for the OpenCV imaging library.
