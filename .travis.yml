@@ -1,13 +1,15 @@
 language: python
 python:
-  - 2.7
+  - 3.5
 
 before_install:
     # update aptitude
+    - sudo add-apt-repository -y ppa:orangain/opencv
     - sudo apt-get update
 
     # verify all requirements were met
     - pip install opencv-python
+
     - INSTALLDIR=$(python -c "import os; import numpy; import cv2; print(os.path.dirname(cv2.__file__))")
 
 install:
