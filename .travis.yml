@@ -1,0 +1,19 @@
+language: python
+python:
+  - 2.7
+
+before_install:
+    # update aptitude
+    - sudo apt-get update
+
+    # verify all requirements were met
+    - pip install opencv-python
+    - INSTALLDIR=$(python -c "import os; import numpy; import cv2; print(os.path.dirname(cv2.__file__))")
+
+install:
+    # install python requirements
+    - make setup
+
+script:
+    # finally run tests
+    - make test
