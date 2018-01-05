@@ -64,6 +64,7 @@ class Engine(BaseEngine):
     def read(self, extension=None, quality=None):
         if not extension and FORMATS[self.extension] == 'TIFF':
             # If the image loaded was a tiff, return the buffer created earlier.
+            print "##### returning tiff directly"
             return self.buffer
         else:
             if quality is None:
@@ -96,6 +97,7 @@ class Engine(BaseEngine):
         return data
 
     def create_image(self, buffer, create_alpha=True):
+        print "###### creating image"
         self.extension = self.extension or '.tif'
         self.no_data_value = None
         # FIXME: opencv doesn't support gifs, even worse, the library
@@ -128,6 +130,13 @@ class Engine(BaseEngine):
     def read_tiff(self, buffer, create_alpha=True):
         """ Reads image using GDAL from a buffer, and returns a CV2 image.
         """
+        print "##### reading tiff"
+        if hasattr(self.context, 'offset'):
+            print "####### offset defined: {}".format(self.context.offset)
+            offset = self.context.offset
+        else:
+            print "####### offset NOT defined"
+            offset = 0.
         mem_map_name = '/vsimem/{}'.format(uuid.uuid4().get_hex())
         gdal_img = None
         try:
@@ -139,7 +148,7 @@ class Engine(BaseEngine):
             if len(channels) >= 3:  # opencv is bgr not rgb.
                 red_channel = channels[0]
                 channels[0] = channels[2]
-                channels[2] = red_channel
+                channels[2] = red_channel + offset
 
             if len(channels) < 4 and create_alpha:
                 self.no_data_value = gdal_img.GetRasterBand(1).GetNoDataValue()
@@ -163,6 +172,8 @@ class Engine(BaseEngine):
                 gdal.VSIFCloseL(vsifile)
 
     def write_channels_to_tiff_buffer(self, channels):
+        print "##### writing channels to tiff buffer"
+        raise Exception("WHY DO WE HAVE THIS CODE IN HERE?!!!")
         mem_map_name = '/vsimem/{}.tiff'.format(uuid.uuid4().get_hex())
         driver = gdal.GetDriverByName('GTiff')
         w, h = channels[0].shape
