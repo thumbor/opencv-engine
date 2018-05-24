@@ -11,7 +11,7 @@
 try:
     import cv
 except ImportError:
-    import cv2.cv as cv
+    import cv2 as cv
 
 from colour import Color
 
