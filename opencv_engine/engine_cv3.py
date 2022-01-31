@@ -14,16 +14,17 @@ from pexif import JpegFile, ExifSegment
 
 try:
     from thumbor.ext.filters import _composite
+
     FILTERS_AVAILABLE = True
 except ImportError:
     FILTERS_AVAILABLE = False
 
 FORMATS = {
-    '.jpg': 'JPEG',
-    '.jpeg': 'JPEG',
-    '.gif': 'GIF',
-    '.png': 'PNG',
-    '.webp': 'WEBP'
+    ".jpg": "JPEG",
+    ".jpeg": "JPEG",
+    ".gif": "GIF",
+    ".png": "PNG",
+    ".webp": "WEBP",
 }
 
 
@@ -53,14 +54,14 @@ class Engine(BaseEngine):
             return None
 
     def gen_image(self, size, color_value):
-        if color_value == 'transparent':
+        if color_value == "transparent":
             color = (255, 255, 255, 255)
             img = np.zeros((size[1], size[0], 4), self.image_depth)
         else:
             img = np.zeros((size[1], size[0], self.image_channels), self.image_depth)
             color = self.parse_hex_color(color_value)
             if not color:
-                raise ValueError('Color %s is not valid.' % color_value)
+                raise ValueError("Color %s is not valid." % color_value)
         img[:] = color
         return img
 
@@ -69,13 +70,13 @@ class Engine(BaseEngine):
         # segfaults when trying to decoding a gif. An exception is a
         # less drastic measure.
         try:
-            if FORMATS[self.extension] == 'GIF':
+            if FORMATS[self.extension] == "GIF":
                 raise ValueError("opencv doesn't support gifs")
         except KeyError:
             pass
 
         img = cv2.imdecode(np.frombuffer(buffer, np.uint8), -1)
-        if FORMATS[self.extension] == 'JPEG':
+        if FORMATS[self.extension] == "JPEG":
             self.exif = None
             try:
                 info = JpegFile.fromString(buffer).get_exif()
@@ -100,7 +101,7 @@ class Engine(BaseEngine):
         self.image = cv2.resize(self.image, dim, interpolation=cv2.INTER_AREA)
 
     def crop(self, left, top, right, bottom):
-        self.image = self.image[top: bottom, left: right]
+        self.image = self.image[top:bottom, left:right]
 
     def rotate(self, degrees):
         # see http://stackoverflow.com/a/23990392
@@ -128,8 +129,8 @@ class Engine(BaseEngine):
             bound_w = int((height * abs_sin) + (width * abs_cos))
             bound_h = int((height * abs_cos) + (width * abs_sin))
 
-            rot_mat[0, 2] += ((bound_w / 2) - image_center[0])
-            rot_mat[1, 2] += ((bound_h / 2) - image_center[1])
+            rot_mat[0, 2] += (bound_w / 2) - image_center[0]
+            rot_mat[1, 2] += (bound_h / 2) - image_center[1]
 
             self.image = cv2.warpAffine(self.image, rot_mat, (bound_w, bound_h))
 
@@ -146,14 +147,14 @@ class Engine(BaseEngine):
         options = None
         extension = extension or self.extension
         try:
-            if FORMATS[extension] == 'JPEG':
+            if FORMATS[extension] == "JPEG":
                 options = [cv2.IMWRITE_JPEG_QUALITY, quality]
         except KeyError:
             # default is JPEG so
             options = [cv2.IMWRITE_JPEG_QUALITY, quality]
 
         try:
-            if FORMATS[extension] == 'WEBP':
+            if FORMATS[extension] == "WEBP":
                 options = [cv2.IMWRITE_WEBP_QUALITY, quality]
         except KeyError:
             options = [cv2.IMWRITE_JPEG_QUALITY, quality]
@@ -161,31 +162,40 @@ class Engine(BaseEngine):
         success, buf = cv2.imencode(extension, self.image, options or [])
         data = buf.tostring()
 
-        if FORMATS[extension] == 'JPEG' and self.context.config.PRESERVE_EXIF_INFO:
-            if hasattr(self, 'exif') and self.exif != None:
+        if FORMATS[extension] == "JPEG" and self.context.config.PRESERVE_EXIF_INFO:
+            if hasattr(self, "exif") and self.exif != None:
                 img = JpegFile.fromString(data)
-                img._segments.insert(0, ExifSegment(self.exif_marker, None, self.exif, 'rw'))
+                img._segments.insert(
+                    0, ExifSegment(self.exif_marker, None, self.exif, "rw")
+                )
                 data = img.writeString()
 
         return data
 
     def set_image_data(self, data):
-        self.image = np.frombuffer(data, dtype=self.image.dtype).reshape(self.image.shape)
+        self.image = np.frombuffer(data, dtype=self.image.dtype).reshape(
+            self.image.shape
+        )
 
     def image_data_as_rgb(self, update_image=True):
         if self.image_channels == 4:
-            mode = 'BGRA'
+            mode = "BGRA"
         elif self.image_channels == 3:
-            mode = 'BGR'
+            mode = "BGR"
         else:
-            mode = 'BGR'
+            mode = "BGR"
             rgb_copy = np.zeros((self.size[1], self.size[0], 3), self.image.dtype)
             cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGR, rgb_copy)
             self.image = rgb_copy
         return mode, self.image.tostring()
 
     def draw_rectangle(self, x, y, width, height):
-        cv2.rectangle(self.image, (int(x), int(y)), (int(x + width), int(y + height)), (255, 255, 255))
+        cv2.rectangle(
+            self.image,
+            (int(x), int(y)),
+            (int(x + width), int(y + height)),
+            (255, 255, 255),
+        )
 
     def convert_to_grayscale(self, update_image=True, with_alpha=True):
         image = None
@@ -199,15 +209,16 @@ class Engine(BaseEngine):
         if update_image:
             self.image = image
         elif self.image_depth == np.uint16:
-            #Feature detector reqiures uint8 images
-            image = np.array(image, dtype='uint8')
+            # Feature detector reqiures uint8 images
+            image = np.array(image, dtype="uint8")
         return image
 
     def paste(self, other_engine, pos, merge=True):
         if merge and not FILTERS_AVAILABLE:
             raise RuntimeError(
-                'You need filters enabled to use paste with merge. Please reinstall ' +
-                'thumbor with proper compilation of its filters.')
+                "You need filters enabled to use paste with merge. Please reinstall "
+                + "thumbor with proper compilation of its filters."
+            )
 
         self.enable_alpha()
         other_engine.enable_alpha()
@@ -219,8 +230,17 @@ class Engine(BaseEngine):
         other_mode, other_data = other_engine.image_data_as_rgb()
 
         imgdata = _composite.apply(
-            mode, data, sz[0], sz[1],
-            other_data, other_size[0], other_size[1], pos[0], pos[1], merge)
+            mode,
+            data,
+            sz[0],
+            sz[1],
+            other_data,
+            other_size[0],
+            other_size[1],
+            pos[0],
+            pos[1],
+            merge,
+        )
 
         self.set_image_data(imgdata)
 

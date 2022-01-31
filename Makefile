@@ -1,3 +1,6 @@
+black:
+	@black .
+
 test: unit integration
 
 unit:

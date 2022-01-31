@@ -20,20 +20,15 @@ from pexif import JpegFile, ExifSegment
 
 try:
     from thumbor.ext.filters import _composite
+
     FILTERS_AVAILABLE = True
 except ImportError:
     FILTERS_AVAILABLE = False
 
-FORMATS = {
-    '.jpg': 'JPEG',
-    '.jpeg': 'JPEG',
-    '.gif': 'GIF',
-    '.png': 'PNG'
-}
+FORMATS = {".jpg": "JPEG", ".jpeg": "JPEG", ".gif": "GIF", ".png": "PNG"}
 
 
 class Engine(BaseEngine):
-
     @property
     def image_depth(self):
         if self.image is None:
@@ -56,12 +51,12 @@ class Engine(BaseEngine):
 
     def gen_image(self, size, color_value):
         img0 = cv.CreateImage(size, self.image_depth, self.image_channels)
-        if color_value == 'transparent':
+        if color_value == "transparent":
             color = (255, 255, 255, 255)
         else:
             color = self.parse_hex_color(color_value)
             if not color:
-                raise ValueError('Color %s is not valid.' % color_value)
+                raise ValueError("Color %s is not valid." % color_value)
         cv.Set(img0, color)
         return img0
 
@@ -70,7 +65,7 @@ class Engine(BaseEngine):
         # segfaults when trying to decoding a gif. An exception is a
         # less drastic measure.
         try:
-            if FORMATS[self.extension] == 'GIF':
+            if FORMATS[self.extension] == "GIF":
                 raise ValueError("opencv doesn't support gifs")
         except KeyError:
             pass
@@ -79,7 +74,7 @@ class Engine(BaseEngine):
         cv.SetData(imagefiledata, buffer, len(buffer))
         img0 = cv.DecodeImageM(imagefiledata, cv.CV_LOAD_IMAGE_UNCHANGED)
 
-        if FORMATS[self.extension] == 'JPEG':
+        if FORMATS[self.extension] == "JPEG":
             try:
                 info = JpegFile.fromString(buffer).get_exif()
                 if info:
@@ -101,7 +96,7 @@ class Engine(BaseEngine):
         thumbnail = cv.CreateImage(
             (int(round(width, 0)), int(round(height, 0))),
             self.image_depth,
-            self.image_channels
+            self.image_channels,
         )
         cv.Resize(self.image, thumbnail, cv.CV_INTER_AREA)
         self.image = thumbnail
@@ -118,7 +113,7 @@ class Engine(BaseEngine):
         self.image = cropped
 
     def rotate(self, degrees):
-        if (degrees > 180):
+        if degrees > 180:
             # Flip around both axes
             cv.Flip(self.image, None, -1)
             degrees = degrees - 180
@@ -126,7 +121,7 @@ class Engine(BaseEngine):
         img = self.image
         size = cv.GetSize(img)
 
-        if (degrees / 90 % 2):
+        if degrees / 90 % 2:
             new_size = (size[1], size[0])
             center = ((size[0] - 1) * 0.5, (size[0] - 1) * 0.5)
         else:
@@ -153,7 +148,7 @@ class Engine(BaseEngine):
         options = None
         extension = extension or self.extension
         try:
-            if FORMATS[extension] == 'JPEG':
+            if FORMATS[extension] == "JPEG":
                 options = [cv.CV_IMWRITE_JPEG_QUALITY, quality]
         except KeyError:
             # default is JPEG so
@@ -161,10 +156,12 @@ class Engine(BaseEngine):
 
         data = cv.EncodeImage(extension, self.image, options or []).tostring()
 
-        if FORMATS[extension] == 'JPEG' and self.context.config.PRESERVE_EXIF_INFO:
-            if hasattr(self, 'exif'):
+        if FORMATS[extension] == "JPEG" and self.context.config.PRESERVE_EXIF_INFO:
+            if hasattr(self, "exif"):
                 img = JpegFile.fromString(data)
-                img._segments.insert(0, ExifSegment(self.exif_marker, None, self.exif, 'rw'))
+                img._segments.insert(
+                    0, ExifSegment(self.exif_marker, None, self.exif, "rw")
+                )
                 data = img.writeString()
 
         return data
@@ -175,31 +172,39 @@ class Engine(BaseEngine):
     def image_data_as_rgb(self, update_image=True):
         # TODO: Handle other formats
         if self.image_channels == 4:
-            mode = 'BGRA'
+            mode = "BGRA"
         elif self.image_channels == 3:
-            mode = 'BGR'
+            mode = "BGR"
         else:
-            mode = 'BGR'
+            mode = "BGR"
             rgb_copy = cv.CreateImage((self.image.width, self.image.height), 8, 3)
             cv.CvtColor(self.image, rgb_copy, cv.CV_GRAY2BGR)
             self.image = rgb_copy
         return mode, self.image.tostring()
 
     def draw_rectangle(self, x, y, width, height):
-        cv.Rectangle(self.image, (int(x), int(y)), (int(x + width), int(y + height)), cv.Scalar(255, 255, 255, 1.0))
+        cv.Rectangle(
+            self.image,
+            (int(x), int(y)),
+            (int(x + width), int(y + height)),
+            cv.Scalar(255, 255, 255, 1.0),
+        )
 
     def convert_to_grayscale(self):
         if self.image_channels >= 3:
             # FIXME: OpenCV does not support grayscale with alpha channel?
-            grayscaled = cv.CreateImage((self.image.width, self.image.height), self.image_depth, 1)
+            grayscaled = cv.CreateImage(
+                (self.image.width, self.image.height), self.image_depth, 1
+            )
             cv.CvtColor(self.image, grayscaled, cv.CV_BGRA2GRAY)
             self.image = grayscaled
 
     def paste(self, other_engine, pos, merge=True):
         if merge and not FILTERS_AVAILABLE:
             raise RuntimeError(
-                'You need filters enabled to use paste with merge. Please reinstall ' +
-                'thumbor with proper compilation of its filters.')
+                "You need filters enabled to use paste with merge. Please reinstall "
+                + "thumbor with proper compilation of its filters."
+            )
 
         self.enable_alpha()
         other_engine.enable_alpha()
@@ -211,8 +216,17 @@ class Engine(BaseEngine):
         other_mode, other_data = other_engine.image_data_as_rgb()
 
         imgdata = _composite.apply(
-            mode, data, sz[0], sz[1],
-            other_data, other_size[0], other_size[1], pos[0], pos[1], merge)
+            mode,
+            data,
+            sz[0],
+            sz[1],
+            other_data,
+            other_size[0],
+            other_size[1],
+            pos[0],
+            pos[1],
+            merge,
+        )
 
         self.set_image_data(imgdata)
 
