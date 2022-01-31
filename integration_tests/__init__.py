@@ -1,10 +1,10 @@
 import os.path
+from shutil import which
 
 from thumbor.app import ThumborServiceApp
 from thumbor.config import Config
 from thumbor.context import Context, ServerParameters
 from thumbor.importer import Importer
-from thumbor.utils import which
 from tornado.ioloop import IOLoop
 from tornado.testing import AsyncHTTPTestCase
 
