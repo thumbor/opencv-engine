@@ -9,15 +9,13 @@ tests_require = [
     "black",
     "colorama",
     "colour",
-    "coverage",
-    "coveralls",
     "ipdb",
     "isort",
     "mock",
-    "nose",
     "numpy",
     "preggy",
-    "yanc",
+    "pytest",
+    "pytest-cov",
 ]
 
 setup(
