@@ -7,17 +7,17 @@ from opencv_engine import __version__
 
 tests_require = [
     "black",
-    "mock",
-    "nose",
-    "coverage",
-    "yanc",
     "colorama",
-    "preggy",
+    "colour",
+    "coverage",
+    "coveralls",
     "ipdb",
     "isort",
-    "coveralls",
+    "mock",
+    "nose",
     "numpy",
-    "colour",
+    "preggy",
+    "yanc",
 ]
 
 setup(
@@ -48,8 +48,8 @@ OpenCV imaging engine for thumbor.
     install_requires=[
         "colour",
         "numpy",
-        "thumbor",
         "opencv-python",
+        "thumbor",
     ],
     extras_require={
         "tests": tests_require,
