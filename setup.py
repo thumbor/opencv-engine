@@ -11,8 +11,6 @@ tests_require = [
     "colour",
     "ipdb",
     "isort",
-    "mock",
-    "numpy",
     "preggy",
     "pytest",
     "pytest-cov",
