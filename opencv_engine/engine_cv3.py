@@ -196,9 +196,9 @@ class Engine(BaseEngine):
             (255, 255, 255),
         )
 
-    def convert_to_grayscale(self, update_image=True, with_alpha=True):
+    def convert_to_grayscale(self, update_image=True, alpha=True):
         image = None
-        if self.image_channels >= 3 and with_alpha:
+        if self.image_channels >= 3 and alpha:
             image = cv2.cvtColor(self.image, cv2.COLOR_BGRA2GRAY)
         elif self.image_channels >= 3:
             image = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)

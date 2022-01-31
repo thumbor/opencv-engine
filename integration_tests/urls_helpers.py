@@ -3,15 +3,14 @@
 
 import logging
 from itertools import product
-from os.path import join
 
 from colorama import Fore
 
-debugs = ["", "debug"]
+DEBUGS = ["", "debug"]
 
-metas = ["meta"]
+METAS = ["meta"]
 
-trims = [
+TRIMS = [
     "trim",
     "trim:top-left",
     "trim:bottom-right",
@@ -19,11 +18,11 @@ trims = [
     "trim:bottom-right:20",
 ]
 
-crops = ["10x10:100x100"]
+CROPS = ["10x10:100x100"]
 
-fitins = ["fit-in", "adaptive-fit-in", "full-fit-in", "adaptive-full-fit-in"]
+FITINS = ["fit-in", "adaptive-fit-in", "full-fit-in", "adaptive-full-fit-in"]
 
-sizes = [
+SIZES = [
     "200x200",
     "-300x100",
     "100x-300",
@@ -33,23 +32,23 @@ sizes = [
     "origxorig",
 ]
 
-haligns = [
+H_ALIGNS = [
     "left",
     "right",
     "center",
 ]
 
-valigns = [
+V_ALIGNS = [
     "top",
     "bottom",
     "middle",
 ]
 
-smarts = [
+SMARTS = [
     "smart",
 ]
 
-filters = [
+FILTERS = [
     "filters:brightness(10)",
     "filters:contrast(10)",
     "filters:equalize()",
@@ -62,6 +61,7 @@ filters = [
     "filters:round_corner(20,255,255,100)",
     "filters:sharpen(6,2.5,false)",
     "filters:sharpen(6,2.5,true)",
+    "filters:strip_exif()",
     "filters:strip_icc()",
     "filters:watermark(rgba-interlaced.png,10,10,50)",
     "filters:watermark(rgba-interlaced.png,center,center,50)",
@@ -81,14 +81,18 @@ filters = [
     "filters:gifv(webm)",
     "filters:gifv(mp4)",
     "filters:max_age(600)",
+    "filters:upscale()",
     # one big filter 4-line string
-    "filters:curve([(0,0),(255,255)],[(0,50),(16,51),(32,69),(58,85),(92,120),(128,170),(140,186),(167,225),"
-    "(192,245),(225,255),(244,255),(255,254)],[(0,0),(16,2),(32,18),(64,59),(92,116),(128,182),(167,211),(192,227)"
-    ",(224,240),(244,247),(255,252)],[(0,48),(16,50),(62,77),(92,110),(128,144),(140,153),(167,180),(192,192),"
+    "filters:curve([(0,0),(255,255)],[(0,50),(16,51),(32,69),"
+    "(58,85),(92,120),(128,170),(140,186),(167,225),"  # NOQA
+    "(192,245),(225,255),(244,255),(255,254)],[(0,0),(16,2),"
+    "(32,18),(64,59),(92,116),(128,182),(167,211),(192,227)"  # NOQA
+    ",(224,240),(244,247),(255,252)],[(0,48),(16,50),(62,77),"
+    "(92,110),(128,144),(140,153),(167,180),(192,192),"  # NOQA
     "(224,217),(244,225),(255,225)])",
 ]
 
-original_images_base = [
+ORIGINAL_IMAGES_BASE = [
     "gradient.jpg",
     "cmyk.jpg",
     "rgba.png",
@@ -96,31 +100,42 @@ original_images_base = [
     "16bit.png",
 ]
 
-original_images_gif_webp = [
+ORIGINAL_IMAGES_GIF_WEBP = [
     "gradient.webp",
     "gradient.gif",
     "animated.gif",
 ]
 
+ALL_OPTIONS = (
+    METAS + TRIMS + CROPS + FITINS + SIZES + H_ALIGNS + V_ALIGNS + SMARTS + FILTERS
+)
 
-class UrlsTester(object):
-    def __init__(self, fetcher, group):
+MAX_DATASET_SIZE = len(ALL_OPTIONS) * (
+    len(ORIGINAL_IMAGES_BASE) + len(ORIGINAL_IMAGES_GIF_WEBP)
+)
+
+
+class UrlsTester:
+    def __init__(self, http_client):
         self.failed_items = []
-        self.test_group(fetcher, group)
+        self.http_client = http_client
 
     def report(self):
-        assert len(self.failed_items) == 0, "Failed urls:\n%s" % "\n".join(
-            self.failed_items
-        )
+        if len(self.failed_items) == 0:
+            return
 
-    def try_url(self, fetcher, url):
+        raise AssertionError("Failed urls:\n%s" % "\n".join(self.failed_items))
+
+    async def try_url(self, url):
         result = None
+        error = None
         failed = False
 
         try:
-            result = fetcher("/%s" % url)
-        except Exception:
-            logging.exception("Error in %s" % url)
+            result = await self.http_client.fetch(url, request_timeout=60)
+        except Exception as err:  # pylint: disable=broad-except
+            logging.exception("Error in %s: %s", url, err)
+            error = err
             failed = True
 
         if result is not None and result.code == 200 and not failed:
@@ -130,46 +145,31 @@ class UrlsTester(object):
         self.failed_items.append(url)
         print(
             "{0.RED} FAILED ({1}) - ERR({2}) {0.RESET}".format(
-                Fore, url, result and result.code
+                Fore, url, result is not None and result.code or error
             )
         )
 
-    def test_group(self, fetcher, group):
-        group = list(group)
-        count = len(group)
 
-        print("Requests count: %d" % count)
-        for options in group:
-            joined_parts = join(*options)
-            url = "unsafe/%s" % joined_parts
-            self.try_url(fetcher, url)
-
-        self.report()
-
-
-def single_dataset(fetcher, with_gif=True):
-    images = original_images_base[:]
+def single_dataset(with_gif=True):
+    images = ORIGINAL_IMAGES_BASE[:]
     if with_gif:
-        images += original_images_gif_webp
-    all_options = (
-        metas + trims + crops + fitins + sizes + haligns + valigns + smarts + filters
-    )
-    UrlsTester(fetcher, product(all_options, images))
+        images += ORIGINAL_IMAGES_GIF_WEBP
+    return product(ALL_OPTIONS, images)
 
 
-def combined_dataset(fetcher, with_gif=True):
-    images = original_images_base[:]
+def combined_dataset(with_gif=True):
+    images = ORIGINAL_IMAGES_BASE[:]
     if with_gif:
-        images += original_images_gif_webp
+        images += ORIGINAL_IMAGES_GIF_WEBP
     combined_options = product(
-        trims[:2],
-        crops[:2],
-        fitins[:2],
-        sizes[:2],
-        haligns[:2],
-        valigns[:2],
-        smarts[:2],
-        filters[:2],
+        TRIMS[:2],
+        CROPS[:2],
+        FITINS[:2],
+        SIZES[:2],
+        H_ALIGNS[:2],
+        V_ALIGNS[:2],
+        SMARTS[:2],
+        FILTERS[:2],
         images,
     )
-    UrlsTester(fetcher, combined_options)
+    return combined_options

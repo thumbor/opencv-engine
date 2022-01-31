@@ -5,10 +5,7 @@ from thumbor.app import ThumborServiceApp
 from thumbor.config import Config
 from thumbor.context import Context, ServerParameters
 from thumbor.importer import Importer
-from tornado.ioloop import IOLoop
 from tornado.testing import AsyncHTTPTestCase
-
-from .urls_helpers import single_dataset  # , combined_dataset
 
 
 class EngineCase(AsyncHTTPTestCase):
@@ -41,21 +38,5 @@ class EngineCase(AsyncHTTPTestCase):
         ctx = Context(server_params, cfg, importer)
         application = ThumborServiceApp(ctx)
 
+        application.debug = True
         return application
-
-    def get_new_ioloop(self):
-        return IOLoop.instance()
-
-    def retrieve(self, url):
-        self.http_client.fetch(self.get_url(url), self.stop)
-        return self.wait(timeout=30)
-
-    def exec_single_params(self):
-        if not self._app:
-            return True
-        single_dataset(self.retrieve)
-
-    # def test_combined_params__with_pil(self):
-    #     if not self._app:
-    #         return True
-    #     combined_dataset(self.retrieve)
