@@ -14,9 +14,8 @@ except ImportError:
     import cv2.cv as cv
 
 from colour import Color
-
+from pexif import ExifSegment, JpegFile
 from thumbor.engines import BaseEngine
-from pexif import JpegFile, ExifSegment
 
 try:
     from thumbor.ext.filters import _composite

@@ -7,10 +7,9 @@
 
 import cv2
 import numpy as np
-
 from colour import Color
+from pexif import ExifSegment, JpegFile
 from thumbor.engines import BaseEngine
-from pexif import JpegFile, ExifSegment
 
 try:
     from thumbor.ext.filters import _composite

@@ -1,6 +1,9 @@
 black:
 	@black .
 
+isort:
+	@isort .
+
 test: unit integration
 
 unit:

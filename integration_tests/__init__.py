@@ -1,14 +1,14 @@
 import os.path
 
-from tornado.testing import AsyncHTTPTestCase
-from tornado.ioloop import IOLoop
-
 from thumbor.app import ThumborServiceApp
-from thumbor.importer import Importer
 from thumbor.config import Config
 from thumbor.context import Context, ServerParameters
-from .urls_helpers import single_dataset  # , combined_dataset
+from thumbor.importer import Importer
 from thumbor.utils import which
+from tornado.ioloop import IOLoop
+from tornado.testing import AsyncHTTPTestCase
+
+from .urls_helpers import single_dataset  # , combined_dataset
 
 
 class EngineCase(AsyncHTTPTestCase):

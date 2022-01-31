@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
+
 from opencv_engine import __version__
 
 tests_require = [
@@ -13,6 +14,7 @@ tests_require = [
     "colorama",
     "preggy",
     "ipdb",
+    "isort",
     "coveralls",
     "numpy",
     "colour",

@@ -2,11 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import logging
-from os.path import join
 from itertools import product
+from os.path import join
 
 from colorama import Fore
-
 
 debugs = ["", "debug"]
 
