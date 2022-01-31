@@ -8,10 +8,11 @@
 # http://www.opensource.org/licenses/mit-license
 # Copyright (c) 2014 globo.com timehome@corp.globo.com
 
+import io
+
 import cv2
 import numpy as np
 from colour import Color
-from pexif import ExifSegment, JpegFile
 from thumbor.engines import BaseEngine
 
 try:
@@ -20,6 +21,13 @@ try:
     FILTERS_AVAILABLE = True
 except ImportError:
     FILTERS_AVAILABLE = False
+
+try:
+    import piexif
+
+    PIEXIF_AVAILABLE = True
+except ImportError:
+    PIEXIF_AVAILABLE = False
 
 FORMATS = {
     ".jpg": "JPEG",
@@ -78,15 +86,11 @@ class Engine(BaseEngine):
             pass
 
         img = cv2.imdecode(np.frombuffer(buffer, np.uint8), -1)
-        if FORMATS[self.extension] == "JPEG":
-            self.exif = None
+        if FORMATS[self.extension] == "JPEG" and PIEXIF_AVAILABLE:
             try:
-                info = JpegFile.fromString(buffer).get_exif()
-                if info:
-                    self.exif = info.data
-                    self.exif_marker = info.marker
+                self.exif = piexif.load(buffer)
             except Exception:
-                pass
+                self.exif = None
         return img
 
     @property
@@ -166,11 +170,9 @@ class Engine(BaseEngine):
 
         if FORMATS[extension] == "JPEG" and self.context.config.PRESERVE_EXIF_INFO:
             if hasattr(self, "exif") and self.exif is not None:
-                img = JpegFile.fromString(data)
-                img._segments.insert(
-                    0, ExifSegment(self.exif_marker, None, self.exif, "rw")
-                )
-                data = img.writeString()
+                output = io.BytesIO()
+                piexif.insert(piexif.dump(self.exif), data, output)
+                data = output.getvalue()
 
         return data
 
