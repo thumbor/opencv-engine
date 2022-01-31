@@ -1,0 +1,23 @@
+name: build
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image-tag:
+          - 37
+          - 38
+          - 39
+          - 310
+    container: thumbororg/thumbor-test:${{ matrix.image-tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Setup
+        run: make setup
+      - name: Run unit tests
+        run: make unit
+      - name: Run integration tests
+        run: make integration
